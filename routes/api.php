@@ -5,6 +5,7 @@ use App\Models\Announcement;
 use App\Models\TestResult;
 use App\Models\Doctor;
 use App\Models\Conversation;
+use App\Models\Slider;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Route as HttpRoute;
@@ -61,6 +62,19 @@ HttpRoute::middleware(['web', 'auth'])->post('/activity/conversation/{conversati
     }
     $conversation->save();
     return response()->json(['ok' => true]);
+});
+
+// Public sliders endpoint for mobile app
+Route::get('sliders', function () {
+    $sliders = Slider::orderBy('position')->limit(3)->get()->map(function ($s) {
+        return [
+            'id' => $s->id,
+            'title' => $s->title,
+            'image_url' => asset('storage/'.$s->image_path),
+            'position' => $s->position,
+        ];
+    });
+    return response()->json($sliders);
 });
 
 

@@ -6,6 +6,44 @@
   },
   "item": [
     {
+      "name": "Sliders (Public)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/sliders",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "sliders"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/sliders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "sliders"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "body": "[{\n  \"id\": 1,\n  \"title\": \"Slide A\",\n  \"image_url\": \"https://.../storage/sliders/a.jpg\",\n  \"position\": 0\n}]"
+        }
+      ]
+    },
+    {
       "name": "Auth",
       "item": [
         {
