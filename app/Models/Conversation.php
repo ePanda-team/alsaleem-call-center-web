@@ -12,6 +12,9 @@ class Conversation extends Model
     protected $fillable = [
         'doctor_id',
         'user_id',
+        'last_message_at',
+        'last_message_preview',
+        'unread_doctor_count',
     ];
 
     public function doctor()

@@ -142,6 +142,52 @@
           ]
         }
       }
+    },
+    {
+      "name": "Conversation",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/doctor/conversation",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctor",
+            "conversation"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "originalRequest": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/conversation",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "conversation"
+              ]
+            }
+          },
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "body": "{\n  \"conversation_id\": 123\n}"
+        }
+      ]
     }
   ],
   "variable": [

@@ -9,9 +9,21 @@ use Illuminate\Http\Request;
 
 class DoctorController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $doctors = Doctor::orderByDesc('id')->paginate(20);
+        $query = Doctor::query();
+        if ($request->filled('q')) {
+            $q = $request->string('q');
+            $query->where(function ($sub) use ($q) {
+                $sub->where('name', 'like', "%{$q}%")
+                    ->orWhere('username', 'like', "%{$q}%")
+                    ->orWhere('speciality', 'like', "%{$q}%");
+            });
+        }
+        if ($request->filled('experience')) {
+            $query->where('experience_level', $request->string('experience'));
+        }
+        $doctors = $query->orderByDesc('id')->paginate(20)->appends($request->query());
         return view('admin.doctors.index', compact('doctors'));
     }
 

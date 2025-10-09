@@ -35,9 +35,10 @@ function detectAttachmentType(file) {
 
 export function mountChat(el) {
     const conversationId = el.getAttribute('data-conversation');
+    const title = el.getAttribute('data-title') || 'Chat';
     const config = getFirebaseConfig();
     if (!isConfigValid(config)) {
-        el.innerHTML = '<div class="border p-3 bg-yellow-50">Firebase is not configured. Set VITE_FIREBASE_* in .env.</div>';
+        el.innerHTML = '<div class="border p-3 bg-yellow-50 rounded">Firebase is not configured. Set VITE_FIREBASE_* in .env.</div>';
         return;
     }
 
@@ -46,12 +47,18 @@ export function mountChat(el) {
     const storage = getStorage(app);
 
     el.innerHTML = `
-      <div class="border rounded p-3 space-y-3">
-        <div id="messages" class="h-64 overflow-y-auto border p-2 bg-white"></div>
-        <div class="flex gap-2">
-          <input id="textInput" class="border p-2 flex-1" placeholder="Type a message" />
-          <input id="fileInput" type="file" class="border p-2" />
-          <button id="sendBtn" class="px-4 py-2 bg-black text-white">Send</button>
+      <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b bg-gray-50 font-medium">${title}</div>
+        <div id="messages" class="h-[60vh] md:h-[70vh] overflow-y-auto px-4 py-3 space-y-2 bg-gradient-to-b from-white to-gray-50"></div>
+        <div class="border-t p-3">
+          <div class="flex items-center gap-2">
+            <input id="textInput" class="border rounded-full px-4 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Type a message" />
+            <label class="px-3 py-2 border rounded cursor-pointer hover:bg-gray-50">
+              <input id="fileInput" type="file" class="hidden" />
+              Attach
+            </label>
+            <button id="sendBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full">Send</button>
+          </div>
         </div>
       </div>
     `;
@@ -67,18 +74,24 @@ export function mountChat(el) {
         messagesEl.innerHTML = '';
         snapshot.forEach((doc) => {
             const m = doc.data();
-            const div = document.createElement('div');
-            div.className = 'mb-2';
-            let body = m.body ? `<div>${m.body}</div>` : '';
-            let attach = '';
-            if (m.attachmentUrl) {
-                if (m.attachmentType === 'image') attach = `<img src="${m.attachmentUrl}" class="max-w-xs" />`;
-                else if (m.attachmentType === 'video') attach = `<video src="${m.attachmentUrl}" controls class="max-w-xs"></video>`;
-                else if (m.attachmentType === 'voice') attach = `<audio src="${m.attachmentUrl}" controls></audio>`;
-                else attach = `<a class="underline" href="${m.attachmentUrl}" target="_blank">Attachment</a>`;
+            const isMine = (m.senderType === 'agent');
+            const wrap = document.createElement('div');
+            wrap.className = `flex ${isMine ? 'justify-end' : 'justify-start'}`;
+            const bubble = document.createElement('div');
+            bubble.className = `max-w-[75%] rounded-2xl px-4 py-2 shadow ${isMine ? 'bg-blue-600 text-white rounded-br-md' : 'bg-gray-100 text-gray-900 rounded-bl-md'}`;
+            let html = '';
+            if (m.body) {
+                html += `<div class="whitespace-pre-wrap">${m.body}</div>`;
             }
-            div.innerHTML = `<div class="text-xs text-gray-500">${m.senderType || 'unknown'}</div>${body}${attach}`;
-            messagesEl.appendChild(div);
+            if (m.attachmentUrl) {
+                if (m.attachmentType === 'image') html += `<img src="${m.attachmentUrl}" class="mt-2 rounded-lg max-w-full" />`;
+                else if (m.attachmentType === 'video') html += `<video src="${m.attachmentUrl}" controls class="mt-2 rounded-lg max-w-full"></video>`;
+                else if (m.attachmentType === 'voice') html += `<audio src="${m.attachmentUrl}" controls class="mt-2 w-full"></audio>`;
+                else html += `<a class="mt-2 underline block" href="${m.attachmentUrl}" target="_blank">Attachment</a>`;
+            }
+            bubble.innerHTML = html;
+            wrap.appendChild(bubble);
+            messagesEl.appendChild(wrap);
         });
         messagesEl.scrollTop = messagesEl.scrollHeight;
     });
@@ -97,8 +110,19 @@ export function mountChat(el) {
             body: body || null,
             attachmentUrl,
             attachmentType,
+            senderType: 'agent',
             createdAt: serverTimestamp(),
         });
+        try {
+            await fetch(`/api/activity/conversation/${conversationId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                },
+                body: JSON.stringify({ body, sender_type: 'agent' })
+            });
+        } catch (e) {}
         textInput.value = '';
         if (fileInput.value) fileInput.value = '';
     });

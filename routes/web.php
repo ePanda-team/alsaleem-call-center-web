@@ -14,16 +14,11 @@ use App\Models\Message;
 
 Route::get('/', function () {
     $sliders = Slider::orderBy('position')->take(3)->get();
-    $lastMessageSub = Message::select('conversation_id')
-        ->selectRaw('MAX(created_at) as last_message_at')
-        ->groupBy('conversation_id');
+    // Latest message per conversation (by id for stability)
     $conversations = \App\Models\Conversation::query()
         ->with('doctor')
-        ->leftJoinSub($lastMessageSub, 'lm', function ($join) {
-            $join->on('lm.conversation_id', '=', 'conversations.id');
-        })
-        ->select('conversations.*', 'lm.last_message_at')
-        ->orderByDesc('lm.last_message_at')
+        ->select('conversations.*')
+        ->orderByDesc('last_message_at')
         ->limit(20)
         ->get();
     return view('home', compact('sliders','conversations'));

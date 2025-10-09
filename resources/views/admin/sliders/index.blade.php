@@ -3,7 +3,7 @@
 @section('content')
 <div class="flex justify-between mb-4">
     <h1 class="text-xl">Sliders</h1>
-    <a href="{{ route('admin.sliders.create') }}" class="underline">Create</a>
+    <a href="{{ route('admin.sliders.create') }}" class="px-4 py-2 bg-black text-white rounded">Create</a>
   </div>
   <div class="grid grid-cols-3 gap-4">
     @foreach($sliders as $slider)

@@ -9,8 +9,13 @@
         @foreach($conversations as $conversation)
           <li class="py-3 flex items-center justify-between">
             <div>
-              <div class="font-medium">{{ $conversation->doctor?->name ?? 'Unknown Doctor' }}</div>
-              <div class="text-sm text-gray-500">Last activity: {{ optional($conversation->last_message_at)->diffForHumans() ?? 'No messages' }}</div>
+              <div class="font-medium flex items-center gap-2">
+                {{ $conversation->doctor?->name ?? 'Unknown Doctor' }}
+                @if(($conversation->unseen_count ?? 0) > 0)
+                  <span class="text-xs bg-red-600 text-white rounded-full px-2 py-0.5">{{ $conversation->unseen_count }}</span>
+                @endif
+              </div>
+              <div class="text-sm text-gray-500">Last: {{ $conversation->last_message_body ? Str::limit($conversation->last_message_body, 50) : '—' }} • {{ optional($conversation->last_message_at)->diffForHumans() ?? 'No messages' }}</div>
             </div>
             @if($conversation->doctor)
               <a class="underline" href="{{ route('chat.show', $conversation->doctor) }}">Open</a>

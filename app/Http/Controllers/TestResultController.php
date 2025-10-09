@@ -8,9 +8,20 @@ use Illuminate\Http\Request;
 
 class TestResultController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $results = TestResult::with('doctor')->orderByDesc('id')->paginate(20);
+        $query = TestResult::with('doctor');
+        if ($request->filled('q')) {
+            $q = $request->string('q');
+            $query->where(function ($sub) use ($q) {
+                $sub->where('patient_name', 'like', "%{$q}%")
+                    ->orWhere('lab_branch', 'like', "%{$q}%");
+            });
+        }
+        if ($request->filled('doctor_id')) {
+            $query->where('doctor_id', (int) $request->input('doctor_id'));
+        }
+        $results = $query->orderByDesc('id')->paginate(20)->appends($request->query());
         return view('results.index', compact('results'));
     }
 

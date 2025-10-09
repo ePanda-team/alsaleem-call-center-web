@@ -8,9 +8,20 @@ use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::orderByDesc('id')->paginate(20);
+        $query = User::query();
+        if ($request->filled('q')) {
+            $q = $request->string('q');
+            $query->where(function ($sub) use ($q) {
+                $sub->where('name', 'like', "%{$q}%")
+                    ->orWhere('email', 'like', "%{$q}%");
+            });
+        }
+        if ($request->filled('role')) {
+            $query->where('role', $request->string('role'));
+        }
+        $users = $query->orderByDesc('id')->paginate(20)->appends($request->query());
         return view('admin.users.index', compact('users'));
     }
 
