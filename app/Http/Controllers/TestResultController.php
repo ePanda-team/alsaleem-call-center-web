@@ -1,0 +1,72 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Doctor;
+use App\Models\TestResult;
+use Illuminate\Http\Request;
+
+class TestResultController extends Controller
+{
+    public function index()
+    {
+        $results = TestResult::with('doctor')->orderByDesc('id')->paginate(20);
+        return view('results.index', compact('results'));
+    }
+
+    public function create()
+    {
+        $doctors = Doctor::orderBy('name')->get();
+        return view('results.create', compact('doctors'));
+    }
+
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'patient_name' => ['required', 'string', 'max:255'],
+            'lab_branch' => ['required', 'string', 'max:255'],
+            'doctor_id' => ['required', 'exists:doctors,id'],
+            'pdf' => ['required', 'file', 'mimetypes:application/pdf'],
+        ]);
+        $path = $request->file('pdf')->store('results', 'public');
+        TestResult::create([
+            'patient_name' => $data['patient_name'],
+            'lab_branch' => $data['lab_branch'],
+            'doctor_id' => $data['doctor_id'],
+            'pdf_path' => $path,
+        ]);
+        return redirect()->route('results.index')->with('status', 'Result added');
+    }
+
+    public function edit(TestResult $result)
+    {
+        $doctors = Doctor::orderBy('name')->get();
+        return view('results.edit', compact('result', 'doctors'));
+    }
+
+    public function update(Request $request, TestResult $result)
+    {
+        $data = $request->validate([
+            'patient_name' => ['required', 'string', 'max:255'],
+            'lab_branch' => ['required', 'string', 'max:255'],
+            'doctor_id' => ['required', 'exists:doctors,id'],
+            'pdf' => ['nullable', 'file', 'mimetypes:application/pdf'],
+        ]);
+        if ($request->hasFile('pdf')) {
+            $result->pdf_path = $request->file('pdf')->store('results', 'public');
+        }
+        $result->patient_name = $data['patient_name'];
+        $result->lab_branch = $data['lab_branch'];
+        $result->doctor_id = $data['doctor_id'];
+        $result->save();
+        return redirect()->route('results.index')->with('status', 'Result updated');
+    }
+
+    public function destroy(TestResult $result)
+    {
+        $result->delete();
+        return back()->with('status', 'Result deleted');
+    }
+}
+
+

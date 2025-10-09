@@ -1,0 +1,153 @@
+{
+  "info": {
+    "name": "Alsaleem Doctor API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Doctor-facing API endpoints for mobile app integration"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Doctor Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"drsmith\",\n  \"password\": \"password\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "doctor",
+                "login"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  try {",
+                  "    var json = pm.response.json();",
+                  "    if (json.token) {",
+                  "      pm.collectionVariables.set('doctorToken', json.token);",
+                  "      pm.test('Saved token to collection variables', function () { pm.expect(json.token).to.be.a('string'); });",
+                  "    }",
+                  "  } catch (e) { /* ignore */ }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"username\": \"drsmith\",\n  \"password\": \"password\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/doctor/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "doctor",
+                    "login"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "body": "{\n  \"token\": \"<doctor_api_token>\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Me",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/doctor/me",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctor",
+            "me"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Results",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/doctor/results",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctor",
+            "results"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Announcements",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/doctor/announcements",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctor",
+            "announcements"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost" },
+    { "key": "doctorToken", "value": "" }
+  ]
+}
+
+
