@@ -226,6 +226,67 @@
           "body": "{\n  \"conversation_id\": 123\n}"
         }
       ]
+    },
+    {
+      "name": "Conversation Messages (List)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages?limit=50",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctor",
+            "conversations",
+            "{{conversationId}}",
+            "messages"
+          ],
+          "query": [
+            { "key": "limit", "value": "50" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Conversation Messages (Send)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"body\": \"Hello from mobile\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctor",
+            "conversations",
+            "{{conversationId}}",
+            "messages"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "201 Created",
+          "status": "Created",
+          "code": 201,
+          "_postman_previewlanguage": "json",
+          "body": "{\n  \"id\": 1\n}"
+        }
+      ]
     }
   ],
   "variable": [
