@@ -39,6 +39,15 @@ Route::middleware('doctor.token')->group(function () {
     Route::get('doctor/results', function (Request $request) {
         $doctor = $request->attributes->get('doctor');
         $results = TestResult::where('doctor_id', $doctor->id)->orderByDesc('id')->paginate(20);
+        $results->getCollection()->transform(function ($result) {
+            return [
+                'id' => $result->id,
+                'patient_name' => $result->patient_name,
+                'lab_branch' => $result->lab_branch,
+                'pdf_path' => asset('storage/'.$result->pdf_path),
+            ];
+        });
+        $results->appends($request->query());
         return response()->json($results);
     });
 
