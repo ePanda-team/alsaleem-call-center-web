@@ -47,6 +47,7 @@ Route::middleware('doctor.token')->group(function () {
                 'patient_name' => $result->patient_name,
                 'lab_branch' => $result->lab_branch,
                 'pdf_path' => asset('storage/'.$result->pdf_path),
+                'doctor_comment' => $result->doctor_comment,
             ];
         });
         $results->appends($request->query());

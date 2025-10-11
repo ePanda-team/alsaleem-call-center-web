@@ -5,7 +5,7 @@
 <table class="w-full">
   <thead>
     <tr>
-      <th>ID</th><th>Patient</th><th>Branch</th><th>PDF</th><th>Comment</th><th></th>
+      <th>ID</th><th>Patient</th><th>Branch</th><th>PDF</th><th>Doctor Comment</th><th></th>
     </tr>
   </thead>
   <tbody>
@@ -15,7 +15,7 @@
         <td>{{ $result->patient_name }}</td>
         <td>{{ $result->lab_branch }}</td>
         <td><a class="underline" href="{{ asset('storage/'.$result->pdf_path) }}" target="_blank">View</a></td>
-        <td>{{ $result->doctor_comment }}</td>
+        <td>{{ $result->doctor_comment ?? 'N/A' }}</td>
         <td><a class="underline" href="{{ route('doctor.results.show', $result) }}">Open</a></td>
       </tr>
     @endforeach

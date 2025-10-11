@@ -35,6 +35,7 @@ return [
     'edit' => 'تعديل',
     'delete' => 'حذف',
     'add' => 'إضافة',
+    'save' => 'حفظ',
     'filter' => 'تصفية',
     'reset' => 'إعادة تعيين',
     'all_roles' => 'كل الأدوار',
@@ -49,6 +50,12 @@ return [
     'no_announcements' => 'لا توجد إعلانات.',
     'no_sliders' => 'لا توجد شرائح.',
     'no_lab_tests' => 'لا توجد فحوصات.',
+    'title' => 'العنوان',
+    'body' => 'المحتوى',
+    'password' => 'كلمة المرور',
+    'experience_level' => 'مستوى الخبرة',
+    'image' => 'الصورة',
+    'position' => 'الترتيب',
 ];
 
 

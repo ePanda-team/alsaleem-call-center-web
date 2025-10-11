@@ -35,6 +35,7 @@ return [
     'edit' => 'Edit',
     'delete' => 'Delete',
     'add' => 'Add',
+    'save' => 'Save',
     'filter' => 'Filter',
     'reset' => 'Reset',
     'all_roles' => 'All roles',
@@ -49,6 +50,12 @@ return [
     'no_announcements' => 'No announcements found.',
     'no_sliders' => 'No sliders found.',
     'no_lab_tests' => 'No lab tests found.',
+    'title' => 'Title',
+    'body' => 'Body',
+    'password' => 'Password',
+    'experience_level' => 'Experience Level',
+    'image' => 'Image',
+    'position' => 'Position',
 ];
 
 
