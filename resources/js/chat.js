@@ -33,6 +33,25 @@ function detectAttachmentType(file) {
     return 'document';
 }
 
+function guessAttachmentTypeFromUrl(url) {
+    if (!url) return null;
+    const u = url.toLowerCase();
+    if (u.match(/\.(mp3|m4a|aac|wav|ogg|webm)(\?|$)/)) return 'voice';
+    if (u.match(/\.(mp4|mov|webm)(\?|$)/)) return 'video';
+    if (u.match(/\.(png|jpg|jpeg|gif|webp)(\?|$)/)) return 'image';
+    return 'document';
+}
+
+function guessMimeForAudio(url) {
+    const u = (url || '').toLowerCase();
+    if (u.includes('.mp3')) return 'audio/mpeg';
+    if (u.includes('.m4a') || u.includes('.aac')) return 'audio/mp4';
+    if (u.includes('.wav')) return 'audio/wav';
+    if (u.includes('.ogg')) return 'audio/ogg';
+    if (u.includes('.webm')) return 'audio/webm';
+    return 'audio/*';
+}
+
 export function mountChat(el) {
     const conversationId = el.getAttribute('data-conversation');
     const title = el.getAttribute('data-title') || 'Chat';
@@ -54,6 +73,8 @@ export function mountChat(el) {
           <div id="filePreview" class="mb-2 hidden"></div>
           <div class="flex items-center gap-2">
             <input id="textInput" class="border rounded-full px-4 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Type a message" />
+            <button id="recordBtn" type="button" class="px-3 py-2 border rounded hover:bg-gray-50">🎙️ Record</button>
+            <span id="recTimer" class="text-sm text-gray-500 hidden">00:00</span>
             <label class="px-3 py-2 border rounded cursor-pointer hover:bg-gray-50">
               <input id="fileInput" type="file" class="hidden" />
               Attach
@@ -68,6 +89,14 @@ export function mountChat(el) {
     const textInput = el.querySelector('#textInput');
     const fileInput = el.querySelector('#fileInput');
     const filePreview = el.querySelector('#filePreview');
+    const recordBtn = el.querySelector('#recordBtn');
+    const recTimerEl = el.querySelector('#recTimer');
+
+    let selectedFile = null;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+    let recStartedAt = null;
+    let recTimerInterval = null;
 
     function clearPreview() {
         if (!filePreview) return;
@@ -96,6 +125,7 @@ export function mountChat(el) {
             removeBtn.addEventListener('click', () => {
                 URL.revokeObjectURL(url);
                 fileInput.value = '';
+                selectedFile = null;
                 clearPreview();
             });
         }
@@ -103,8 +133,78 @@ export function mountChat(el) {
 
     fileInput.addEventListener('change', () => {
         const file = fileInput.files && fileInput.files[0];
-        renderPreview(file);
+        selectedFile = file || null;
+        renderPreview(selectedFile);
     });
+
+    function updateRecTimer() {
+        if (!recStartedAt || !recTimerEl) return;
+        const secs = Math.floor((Date.now() - recStartedAt) / 1000);
+        const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+        const ss = String(secs % 60).padStart(2, '0');
+        recTimerEl.textContent = `${mm}:${ss}`;
+    }
+
+    async function startRecording() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            recordedChunks = [];
+            // Pick a mime type the browser supports (Safari often prefers mp4, Chrome prefers webm)
+            const typeOptions = [
+                'audio/webm;codecs=opus',
+                'audio/webm',
+                'audio/mp4;codecs=mp4a',
+                'audio/mp4',
+                'audio/ogg;codecs=opus',
+                'audio/ogg'
+            ];
+            let chosen = '';
+            for (const t of typeOptions) {
+                if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) { chosen = t; break; }
+            }
+            mediaRecorder = new MediaRecorder(stream, chosen ? { mimeType: chosen } : undefined);
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+            };
+            mediaRecorder.onstop = () => {
+                const fallbackType = chosen || 'audio/webm';
+                const blob = new Blob(recordedChunks, { type: fallbackType });
+                const ext = fallbackType.includes('mp4') ? 'm4a' : (fallbackType.includes('ogg') ? 'ogg' : 'webm');
+                selectedFile = new File([blob], `voice-${Date.now()}.${ext}`, { type: blob.type });
+                renderPreview(selectedFile);
+                // stop tracks
+                stream.getTracks().forEach(t => t.stop());
+            };
+            mediaRecorder.start();
+            recStartedAt = Date.now();
+            recTimerEl.classList.remove('hidden');
+            updateRecTimer();
+            recTimerInterval = setInterval(updateRecTimer, 500);
+            recordBtn.textContent = '⏹️ Stop';
+        } catch (err) {
+            alert('Microphone permission denied or not available.');
+        }
+    }
+
+    function stopRecording() {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+        }
+        if (recTimerInterval) clearInterval(recTimerInterval);
+        recTimerInterval = null;
+        recTimerEl.classList.add('hidden');
+        recordBtn.textContent = '🎙️ Record';
+    }
+
+    if (recordBtn) {
+        recordBtn.addEventListener('click', () => {
+            if (!mediaRecorder || mediaRecorder.state === 'inactive') {
+                startRecording();
+            } else {
+                stopRecording();
+            }
+        });
+    }
     const sendBtn = el.querySelector('#sendBtn');
 
     const messagesCol = collection(db, 'conversations', String(conversationId), 'messages');
@@ -126,11 +226,23 @@ export function mountChat(el) {
             if (m.body) {
                 html += `<div class="whitespace-pre-wrap">${m.body}</div>`;
             }
-            if (m.attachmentUrl) {
-                if (m.attachmentType === 'image') html += `<img src="${m.attachmentUrl}" class="mt-2 rounded-lg max-w-full" />`;
-                else if (m.attachmentType === 'video') html += `<video src="${m.attachmentUrl}" controls class="mt-2 rounded-lg max-w-full"></video>`;
-                else if (m.attachmentType === 'voice') html += `<audio src="${m.attachmentUrl}" controls class="mt-2 w-full"></audio>`;
-                else html += `<a class="mt-2 underline block" href="${m.attachmentUrl}" target="_blank">Attachment</a>`;
+            // Normalize attachment fields coming from different sources (Firestore, API, legacy)
+            const att = (m.attachment) || {};
+            const url = m.attachmentUrl || m.attachment_url || m.attachmentPath || m.attachment_path || m.url || m.fileUrl || m.file_url || att.url || att.path || null;
+            const aType = m.attachmentType || m.attachment_type || att.type || guessAttachmentTypeFromUrl(url);
+            if (url) {
+                if (aType === 'image') html += `<img src="${url}" class="mt-2 rounded-lg max-w-full" />`;
+                else if (aType === 'video') html += `<video src="${url}" controls preload="metadata" class="mt-2 rounded-lg max-w-full"></video>`;
+                else if (aType === 'voice') {
+                    const mime = guessMimeForAudio(url);
+                    console.log('audio messages');
+                    html += `<audio controls style="height: 40px;width: 500px;" preload="metadata" class="mt-2 w-full" controls>
+                    <source src="${url}" type="${mime}">Your browser does not support the audio element.</audio>`;
+                }
+                else html += `<a class="mt-2 underline block" href="${url}" target="_blank">Attachment</a>`;
+            } else if (aType === 'voice') {
+                // Fallback text if type is known but URL missing
+                html += `<div class="mt-1 italic opacity-80">Voice message (no URL)</div>`;
             }
             bubble.innerHTML = html;
             wrap.appendChild(bubble);
@@ -149,7 +261,7 @@ export function mountChat(el) {
 
     sendBtn.addEventListener('click', async () => {
         const body = textInput.value.trim();
-        const file = fileInput.files && fileInput.files[0];
+        const file = selectedFile || (fileInput.files && fileInput.files[0]);
         if (!body && !file) return;
         let attachmentUrl = null;
         let attachmentType = null;
@@ -176,6 +288,7 @@ export function mountChat(el) {
         } catch (e) {}
         textInput.value = '';
         if (fileInput.value) fileInput.value = '';
+        selectedFile = null;
         clearPreview();
         scrollToBottom();
     });
