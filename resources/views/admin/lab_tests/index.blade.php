@@ -23,7 +23,7 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100">
-        @foreach($labTests as $t)
+        @forelse($labTests as $t)
           <tr class="hover:bg-gray-50">
             <td class="px-4 py-2">{{ $t->id }}</td>
             <td class="px-4 py-2">{{ $t->name }}</td>
@@ -36,7 +36,11 @@
               </form>
             </td>
           </tr>
-        @endforeach
+        @empty
+          <tr>
+            <td colspan="4" class="px-4 py-6 text-center text-gray-500">No lab tests found.</td>
+          </tr>
+        @endforelse
       </tbody>
     </table>
   </div>

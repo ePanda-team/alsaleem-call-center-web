@@ -32,7 +32,7 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100">
-        @foreach($results as $result)
+        @forelse($results as $result)
           <tr class="hover:bg-gray-50">
             <td class="px-4 py-2">{{ $result->id }}</td>
             <td class="px-4 py-2">{{ $result->patient_name }}</td>
@@ -48,7 +48,11 @@
               </form>
             </td>
           </tr>
-        @endforeach
+        @empty
+          <tr>
+            <td colspan="7" class="px-4 py-6 text-center text-gray-500">No results found.</td>
+          </tr>
+        @endforelse
       </tbody>
     </table>
   </div>

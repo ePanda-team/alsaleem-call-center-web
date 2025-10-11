@@ -30,7 +30,7 @@
         </tr>
       </thead>
       <tbody class="divide-y divide-gray-100">
-        @foreach($users as $user)
+        @forelse($users as $user)
           <tr class="hover:bg-gray-50">
             <td class="px-4 py-2">{{ $user->id }}</td>
             <td class="px-4 py-2">{{ $user->name }}</td>
@@ -44,7 +44,11 @@
               </form>
             </td>
           </tr>
-        @endforeach
+        @empty
+          <tr>
+            <td colspan="5" class="px-4 py-6 text-center text-gray-500">No users found.</td>
+          </tr>
+        @endforelse
       </tbody>
     </table>
   </div>

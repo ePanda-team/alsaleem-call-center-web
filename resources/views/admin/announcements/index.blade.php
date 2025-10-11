@@ -6,7 +6,7 @@
     <a href="{{ route('admin.announcements.create') }}" class="underline">Create</a>
   </div>
   <ul class="space-y-2">
-    @foreach($announcements as $item)
+    @forelse($announcements as $item)
       <li class="border p-3">
         <div class="font-semibold">{{ $item->title }}</div>
         <div class="text-sm">{{ $item->body }}</div>
@@ -16,7 +16,9 @@
           <button class="underline" onclick="return confirm('Delete?')">Delete</button>
         </form>
       </li>
-    @endforeach
+    @empty
+      <li class="border p-3 text-center text-gray-500">No announcements found.</li>
+    @endforelse
   </ul>
   {{ $announcements->links() }}
 @endsection
