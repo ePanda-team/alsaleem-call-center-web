@@ -29,6 +29,11 @@ class Doctor extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public static function getSpecialties()
+    {
+        return config('doctor.specialties');
+    }
 }
 
 

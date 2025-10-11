@@ -101,6 +101,7 @@ return [
     'all_status' => 'All Status',
     'no_lab_branches_found' => 'No lab branches found',
     'code' => 'Code',
+    'select_speciality' => 'Select Speciality',
 ];
 
 

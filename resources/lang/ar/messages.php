@@ -101,6 +101,7 @@ return [
     'all_status' => 'جميع الحالات',
     'no_lab_branches_found' => 'لم يتم العثور على فروع مختبر',
     'code' => 'الكود',
+    'select_speciality' => 'اختر التخصص',
 ];
 
 

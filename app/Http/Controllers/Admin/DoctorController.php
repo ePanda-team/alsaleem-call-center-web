@@ -29,7 +29,8 @@ class DoctorController extends Controller
 
     public function create()
     {
-        return view('admin.doctors.create');
+        $specialties = Doctor::getSpecialties();
+        return view('admin.doctors.create', compact('specialties'));
     }
 
     public function store(Request $request)
@@ -48,7 +49,8 @@ class DoctorController extends Controller
 
     public function edit(Doctor $doctor)
     {
-        return view('admin.doctors.edit', compact('doctor'));
+        $specialties = Doctor::getSpecialties();
+        return view('admin.doctors.edit', compact('doctor', 'specialties'));
     }
 
     public function update(Request $request, Doctor $doctor)

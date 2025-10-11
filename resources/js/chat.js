@@ -72,14 +72,20 @@ export function mountChat(el) {
         <div class="border-t p-3">
           <div id="filePreview" class="mb-2 hidden"></div>
           <div class="flex items-center gap-2">
-            <input id="textInput" class="border rounded-full px-4 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Type a message" />
-            <button id="recordBtn" type="button" class="px-3 py-2 border rounded hover:bg-gray-50">🎙️ Record</button>
+            <input id="textInput" class="border rounded-lg px-4 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-[#FE0003]" placeholder="Type a message" />
+            <button id="recordBtn" type="button" class="px-3 py-2 border rounded-lg hover:bg-gray-50" title="Record Voice Message">
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+              </svg>
+            </button>
             <span id="recTimer" class="text-sm text-gray-500 hidden">00:00</span>
-            <label class="px-3 py-2 border rounded cursor-pointer hover:bg-gray-50">
+            <label class="px-3 py-2 border rounded-lg cursor-pointer hover:bg-gray-50" title="Attach File">
               <input id="fileInput" type="file" class="hidden" />
-              Attach
+              <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path>
+              </svg>
             </label>
-            <button id="sendBtn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-full">Send</button>
+            <button id="sendBtn" class="px-4 py-2 bg-[#FE0003] hover:bg-red-700 text-white rounded-lg">Send</button>
           </div>
         </div>
       </div>
@@ -192,7 +198,11 @@ export function mountChat(el) {
             recTimerEl.classList.remove('hidden');
             updateRecTimer();
             recTimerInterval = setInterval(updateRecTimer, 500);
-            recordBtn.textContent = '⏹️ Stop';
+            recordBtn.innerHTML = `
+              <svg class="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"></path>
+              </svg>`;
         } catch (err) {
             alert('Microphone permission denied or not available.');
         }
@@ -205,7 +215,10 @@ export function mountChat(el) {
         if (recTimerInterval) clearInterval(recTimerInterval);
         recTimerInterval = null;
         recTimerEl.classList.add('hidden');
-        recordBtn.textContent = '🎙️ Record';
+        recordBtn.innerHTML = `
+          <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+          </svg>`;
     }
 
     if (recordBtn) {

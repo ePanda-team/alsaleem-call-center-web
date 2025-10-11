@@ -15,7 +15,12 @@
       </div>
       <div>
         <label class="block text-sm mb-1">{{ __('messages.speciality') }}</label>
-        <input name="speciality" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" value="{{ old('speciality', $doctor->speciality) }}" />
+        <select name="speciality" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#FE0003]">
+            <option value="">{{ __('messages.select_speciality') }}</option>
+            @foreach($specialties as $specialty)
+                <option value="{{ $specialty }}" {{ old('speciality', $doctor->speciality) === $specialty ? 'selected' : '' }}>{{ $specialty }}</option>
+            @endforeach
+        </select>
       </div>
       <div>
         <label class="block text-sm mb-1">{{ __('messages.experience_level') }}</label>
