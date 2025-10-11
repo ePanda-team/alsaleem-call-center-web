@@ -54,8 +54,23 @@ Route::middleware('doctor.token')->group(function () {
         return response()->json($results);
     });
 
-    Route::get('doctor/announcements', function () {
+    Route::get('doctor/announcements', function (Request $request) {
+        $doctor = $request->attributes->get('doctor');
         $items = Announcement::orderByDesc('id')->paginate(20);
+        
+        // Track views for all announcements in this request
+        foreach ($items->items() as $announcement) {
+            \App\Models\AnnouncementView::updateOrCreate(
+                [
+                    'announcement_id' => $announcement->id,
+                    'doctor_id' => $doctor->id,
+                ],
+                [
+                    'viewed_at' => now(),
+                ]
+            );
+        }
+        
         return response()->json($items);
     });
 

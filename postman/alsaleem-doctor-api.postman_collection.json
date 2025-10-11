@@ -203,7 +203,8 @@
             "doctor",
             "announcements"
           ]
-        }
+        },
+        "description": "Get announcements (views are automatically tracked when fetched)"
       }
     },
     {

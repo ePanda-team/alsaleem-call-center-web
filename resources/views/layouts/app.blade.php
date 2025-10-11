@@ -8,26 +8,29 @@
         @vite(['resources/css/app.css','resources/js/app.js'])
     </head>
     <body class="min-h-screen bg-gray-50">
-        <header class="bg-white border-b">
-            <div class="max-w-7xl mx-auto px-4 py-3 grid grid-cols-3 items-center">
+        <header class="bg-white border-b border-gray-200 shadow-sm">
+            <div class="max-w-7xl mx-auto px-4 py-4 grid grid-cols-3 items-center">
                 <div>
                     @guest
-                        <a href="{{ route('login') }}" class="px-3 py-1.5 border rounded">{{ __('messages.login') }}</a>
+                        <a href="{{ route('login') }}" class="px-4 py-2 bg-[#FE0003] hover:bg-red-700 text-white rounded-lg font-medium transition-all duration-200">{{ __('messages.login') }}</a>
                     @endguest
                 </div>
-                <div class="text-center font-semibold">
-                    {{ __('messages.app_name') }}
+                <div class="text-center">
+                    <div class="flex items-center justify-center space-x-3">
+                        <img src="{{ asset('main-logo.png') }}" alt="Alsaleem Call Center" class="h-8">
+                        <span class="text-xl font-bold text-gray-900">{{ __('messages.app_name') }}</span>
+                    </div>
                 </div>
-                <div class="text-right">
+                <div class="text-right flex items-center justify-end space-x-2">
                     @auth
                         <form method="post" action="{{ route('logout') }}" class="inline">
                             @csrf
-                            <button class="px-3 py-1.5 border rounded">{{ __('messages.logout') }}</button>
+                            <button class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-all duration-200">{{ __('messages.logout') }}</button>
                         </form>
                     @endauth
-                    <form method="post" action="{{ route('locale.set', app()->getLocale()==='ar' ? 'en' : 'ar') }}" class="inline ml-2">
+                    <form method="post" action="{{ route('locale.set', app()->getLocale()==='ar' ? 'en' : 'ar') }}" class="inline">
                         @csrf
-                        <button class="px-3 py-1.5 border rounded" title="Switch language">{{ app()->getLocale()==='ar' ? 'EN' : 'AR' }}</button>
+                        <button class="px-3 py-2 border border-gray-300 hover:border-[#FE0003] hover:text-[#FE0003] rounded-lg font-medium transition-all duration-200" title="Switch language">{{ app()->getLocale()==='ar' ? 'EN' : 'AR' }}</button>
                     </form>
                 </div>
             </div>
@@ -63,6 +66,9 @@
                                 </li>
                                 <li>
                                     <a href="{{ route('admin.lab-tests.index') }}" class="block px-3 py-2 rounded {{ request()->is('admin/lab-tests*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">{{ __('messages.lab_tests') }}</a>
+                                </li>
+                                <li>
+                                    <a href="{{ route('admin.lab-branches.index') }}" class="block px-3 py-2 rounded {{ request()->is('admin/lab-branches*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">{{ __('messages.lab_branches') }}</a>
                                 </li>
                             </ul>
                         </nav>

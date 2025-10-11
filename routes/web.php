@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\DoctorController;
 use App\Http\Controllers\Admin\SliderController;
 use App\Http\Controllers\Admin\AnnouncementController;
 use App\Http\Controllers\Admin\LabTestController;
+use App\Http\Controllers\Admin\LabBranchController;
 use App\Http\Controllers\TestResultController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\AuthController as StaffAuthController;
@@ -23,6 +24,7 @@ Route::middleware('setlocale')->get('/', function () {
         ->where('last_message_at', '>=', now()->subHour())
         ->distinct('doctor_id')
         ->count('doctor_id');
+    
     // Latest message per conversation (by id for stability)
     $conversations = \App\Models\Conversation::query()
         ->with('doctor')
@@ -30,7 +32,36 @@ Route::middleware('setlocale')->get('/', function () {
         ->orderByDesc('last_message_at')
         ->limit(20)
         ->get();
-    return view('home', compact('sliders','conversations','doctorCount','resultCount','activeDoctorsLastHour'));
+    
+    // Last 5 active doctors (doctors with recent conversations)
+    $lastActiveDoctors = Doctor::join('conversations', 'doctors.id', '=', 'conversations.doctor_id')
+        ->whereNotNull('conversations.last_message_at')
+        ->where('conversations.last_message_at', '>=', now()->subDays(7))
+        ->orderByDesc('conversations.last_message_at')
+        ->select('doctors.*')
+        ->limit(5)
+        ->get();
+    
+    // Last 10 entered results
+    $lastResults = TestResult::with('doctor')->orderByDesc('created_at')->limit(10)->get();
+    
+    // Ranking of lab branches with most results
+    $branchRanking = TestResult::selectRaw('lab_branch, COUNT(*) as result_count')
+        ->groupBy('lab_branch')
+        ->orderByDesc('result_count')
+        ->limit(5)
+        ->get();
+    
+    return view('home', compact(
+        'sliders',
+        'conversations',
+        'doctorCount',
+        'resultCount',
+        'activeDoctorsLastHour',
+        'lastActiveDoctors',
+        'lastResults',
+        'branchRanking'
+    ));
 });
 
 // Staff auth
@@ -53,7 +84,9 @@ Route::middleware(['setlocale','auth', 'role:admin,supervisor'])->prefix('admin'
     Route::resource('doctors', DoctorController::class)->except(['show']);
     Route::resource('sliders', SliderController::class)->except(['show']);
     Route::resource('announcements', AnnouncementController::class)->except(['show']);
+    Route::get('announcements/{announcement}/viewers', [AnnouncementController::class, 'viewers'])->name('announcements.viewers');
     Route::resource('lab-tests', LabTestController::class)->except(['show']);
+    Route::resource('lab-branches', LabBranchController::class)->except(['show']);
 });
 
 // Results CRUD for agents and supervisors (localized)

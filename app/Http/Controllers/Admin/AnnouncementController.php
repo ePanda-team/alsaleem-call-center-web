@@ -10,7 +10,7 @@ class AnnouncementController extends Controller
 {
     public function index()
     {
-        $announcements = Announcement::orderByDesc('id')->paginate(20);
+        $announcements = Announcement::withCount('views')->orderByDesc('id')->paginate(20);
         return view('admin.announcements.index', compact('announcements'));
     }
 
@@ -48,6 +48,12 @@ class AnnouncementController extends Controller
     {
         $announcement->delete();
         return back()->with('status', 'Announcement deleted');
+    }
+
+    public function viewers(Announcement $announcement)
+    {
+        $viewers = $announcement->views()->with('doctor')->orderByDesc('viewed_at')->get();
+        return response()->json($viewers);
     }
 }
 

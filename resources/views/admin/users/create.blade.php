@@ -7,26 +7,26 @@
       @csrf
       <div>
         <label class="block text-sm mb-1">{{ __('messages.name') }}</label>
-        <input name="name" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" value="{{ old('name') }}" />
+        <input name="name" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#FE0003]" value="{{ old('name') }}" />
       </div>
       <div>
         <label class="block text-sm mb-1">{{ __('messages.email') }}</label>
-        <input name="email" type="email" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" value="{{ old('email') }}" />
+        <input name="email" type="email" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#FE0003]" value="{{ old('email') }}" />
       </div>
       <div>
         <label class="block text-sm mb-1">{{ __('messages.password') }}</label>
-        <input type="password" name="password" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        <input type="password" name="password" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#FE0003]" />
       </div>
       <div>
         <label class="block text-sm mb-1">{{ __('messages.role') }}</label>
-        <select name="role" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <select name="role" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#FE0003]">
             <option value="admin">admin</option>
             <option value="supervisor">supervisor</option>
             <option value="agent" selected>agent</option>
         </select>
       </div>
       <div class="pt-2">
-        <button class="px-4 py-2 bg-black text-white rounded">{{ __('messages.save') }}</button>
+        <button class="px-4 py-2 bg-[#FE0003] hover:bg-red-700 text-white rounded font-medium transition-all duration-200">{{ __('messages.save') }}</button>
       </div>
     </form>
 </div>

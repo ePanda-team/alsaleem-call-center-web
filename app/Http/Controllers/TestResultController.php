@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Doctor;
 use App\Models\TestResult;
+use App\Models\LabBranch;
 use Illuminate\Http\Request;
 
 class TestResultController extends Controller
@@ -28,7 +29,8 @@ class TestResultController extends Controller
     public function create()
     {
         $doctors = Doctor::orderBy('name')->get();
-        return view('results.create', compact('doctors'));
+        $labBranches = LabBranch::where('is_active', true)->orderBy('name')->get();
+        return view('results.create', compact('doctors', 'labBranches'));
     }
 
     public function store(Request $request)
@@ -52,7 +54,8 @@ class TestResultController extends Controller
     public function edit(TestResult $result)
     {
         $doctors = Doctor::orderBy('name')->get();
-        return view('results.edit', compact('result', 'doctors'));
+        $labBranches = LabBranch::where('is_active', true)->orderBy('name')->get();
+        return view('results.edit', compact('result', 'doctors', 'labBranches'));
     }
 
     public function update(Request $request, TestResult $result)
