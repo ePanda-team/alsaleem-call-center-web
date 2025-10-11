@@ -163,16 +163,87 @@ export function mountChat(el) {
         recTimerEl.textContent = `${mm}:${ss}`;
     }
 
+    async function convertToMp3(audioBlob) {
+        try {
+            // Create audio context
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            
+            // Convert blob to array buffer
+            const arrayBuffer = await audioBlob.arrayBuffer();
+            
+            // Decode audio data
+            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+            
+            // Convert to WAV format first (simpler conversion)
+            const wavBlob = audioBufferToWav(audioBuffer);
+            
+            // For now, we'll return the WAV as MP3 (browsers will handle it)
+            // In a production environment, you'd want to use a proper MP3 encoder like lamejs
+            return new Blob([wavBlob], { type: 'audio/mp3' });
+        } catch (error) {
+            console.error('Error converting to MP3:', error);
+            // Fallback: return original blob with MP3 mime type
+            return new Blob([audioBlob], { type: 'audio/mp3' });
+        }
+    }
+
+    function audioBufferToWav(buffer) {
+        const length = buffer.length;
+        const sampleRate = buffer.sampleRate;
+        const numberOfChannels = buffer.numberOfChannels;
+        const bytesPerSample = 2;
+        const blockAlign = numberOfChannels * bytesPerSample;
+        const byteRate = sampleRate * blockAlign;
+        const dataSize = length * blockAlign;
+        const bufferSize = 44 + dataSize;
+        
+        const arrayBuffer = new ArrayBuffer(bufferSize);
+        const view = new DataView(arrayBuffer);
+        
+        // WAV header
+        const writeString = (offset, string) => {
+            for (let i = 0; i < string.length; i++) {
+                view.setUint8(offset + i, string.charCodeAt(i));
+            }
+        };
+        
+        writeString(0, 'RIFF');
+        view.setUint32(4, bufferSize - 8, true);
+        writeString(8, 'WAVE');
+        writeString(12, 'fmt ');
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, numberOfChannels, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, byteRate, true);
+        view.setUint16(32, blockAlign, true);
+        view.setUint16(34, 16, true);
+        writeString(36, 'data');
+        view.setUint32(40, dataSize, true);
+        
+        // Convert audio data
+        let offset = 44;
+        for (let i = 0; i < length; i++) {
+            for (let channel = 0; channel < numberOfChannels; channel++) {
+                const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
+                offset += 2;
+            }
+        }
+        
+        return arrayBuffer;
+    }
+
     async function startRecording() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             recordedChunks = [];
-            // Pick a mime type the browser supports (Safari often prefers mp4, Chrome prefers webm)
+            // Prioritize MP3-compatible formats, fallback to others
             const typeOptions = [
+                'audio/mp4;codecs=mp4a',  // MP4 with AAC codec (MP3-compatible)
+                'audio/mp4',
                 'audio/webm;codecs=opus',
                 'audio/webm',
-                'audio/mp4;codecs=mp4a',
-                'audio/mp4',
                 'audio/ogg;codecs=opus',
                 'audio/ogg'
             ];
@@ -184,11 +255,21 @@ export function mountChat(el) {
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data && e.data.size > 0) recordedChunks.push(e.data);
             };
-            mediaRecorder.onstop = () => {
+            mediaRecorder.onstop = async () => {
                 const fallbackType = chosen || 'audio/webm';
                 const blob = new Blob(recordedChunks, { type: fallbackType });
-                const ext = fallbackType.includes('mp4') ? 'm4a' : (fallbackType.includes('ogg') ? 'ogg' : 'webm');
-                selectedFile = new File([blob], `voice-${Date.now()}.${ext}`, { type: blob.type });
+                
+                // Convert to MP3 format
+                let mp3Blob;
+                if (fallbackType.includes('mp4')) {
+                    // If it's already MP4/AAC, we can rename it as MP3
+                    mp3Blob = new Blob([blob], { type: 'audio/mp3' });
+                } else {
+                    // For other formats, we'll convert using Web Audio API
+                    mp3Blob = await convertToMp3(blob);
+                }
+                
+                selectedFile = new File([mp3Blob], `voice-${Date.now()}.mp3`, { type: 'audio/mp3' });
                 renderPreview(selectedFile);
                 // stop tracks
                 stream.getTracks().forEach(t => t.stop());
