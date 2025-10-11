@@ -108,6 +108,10 @@ export function mountChat(el) {
     const sendBtn = el.querySelector('#sendBtn');
 
     const messagesCol = collection(db, 'conversations', String(conversationId), 'messages');
+    const scrollToBottom = () => {
+        if (!messagesEl) return;
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    };
     const q = query(messagesCol, orderBy('createdAt'));
     onSnapshot(q, (snapshot) => {
         messagesEl.innerHTML = '';
@@ -131,8 +135,16 @@ export function mountChat(el) {
             bubble.innerHTML = html;
             wrap.appendChild(bubble);
             messagesEl.appendChild(wrap);
+            // Defer scroll after media loads
+            const media = bubble.querySelector('img,video');
+            if (media) {
+                media.addEventListener('load', () => setTimeout(scrollToBottom, 10), { once: true });
+                media.addEventListener('loadeddata', () => setTimeout(scrollToBottom, 10), { once: true });
+            }
         });
-        messagesEl.scrollTop = messagesEl.scrollHeight;
+        // Scroll now and once more after layout settles
+        scrollToBottom();
+        setTimeout(scrollToBottom, 50);
     });
 
     sendBtn.addEventListener('click', async () => {
@@ -165,6 +177,7 @@ export function mountChat(el) {
         textInput.value = '';
         if (fileInput.value) fileInput.value = '';
         clearPreview();
+        scrollToBottom();
     });
 }
 
