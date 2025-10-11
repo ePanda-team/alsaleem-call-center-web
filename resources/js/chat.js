@@ -51,6 +51,7 @@ export function mountChat(el) {
         <div class="px-4 py-3 border-b bg-gray-50 font-medium">${title}</div>
         <div id="messages" class="h-[60vh] md:h-[70vh] overflow-y-auto px-4 py-3 space-y-2 bg-gradient-to-b from-white to-gray-50"></div>
         <div class="border-t p-3">
+          <div id="filePreview" class="mb-2 hidden"></div>
           <div class="flex items-center gap-2">
             <input id="textInput" class="border rounded-full px-4 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Type a message" />
             <label class="px-3 py-2 border rounded cursor-pointer hover:bg-gray-50">
@@ -66,6 +67,44 @@ export function mountChat(el) {
     const messagesEl = el.querySelector('#messages');
     const textInput = el.querySelector('#textInput');
     const fileInput = el.querySelector('#fileInput');
+    const filePreview = el.querySelector('#filePreview');
+
+    function clearPreview() {
+        if (!filePreview) return;
+        filePreview.innerHTML = '';
+        filePreview.classList.add('hidden');
+    }
+
+    function renderPreview(file) {
+        if (!file || !filePreview) return clearPreview();
+        const url = URL.createObjectURL(file);
+        let html = '';
+        const base = 'inline-flex items-center gap-2 px-3 py-2 border rounded bg-gray-50';
+        if (file.type.startsWith('image/')) {
+            html = `<div class="${base}"><img src="${url}" class="h-16 w-auto rounded" /><div class="text-sm">${file.name}</div><button type="button" id="removeFile" class="ml-2 text-red-600 text-sm">Remove</button></div>`;
+        } else if (file.type.startsWith('video/')) {
+            html = `<div class="${base}"><video src="${url}" class="h-16 w-24" muted loop></video><div class="text-sm">${file.name}</div><button type="button" id="removeFile" class="ml-2 text-red-600 text-sm">Remove</button></div>`;
+        } else if (file.type.startsWith('audio/')) {
+            html = `<div class="${base}"><audio src="${url}" controls class="h-8"></audio><div class="text-sm">${file.name}</div><button type="button" id="removeFile" class="ml-2 text-red-600 text-sm">Remove</button></div>`;
+        } else {
+            html = `<div class="${base}"><span class="text-sm">${file.name}</span><button type="button" id="removeFile" class="ml-2 text-red-600 text-sm">Remove</button></div>`;
+        }
+        filePreview.innerHTML = html;
+        filePreview.classList.remove('hidden');
+        const removeBtn = filePreview.querySelector('#removeFile');
+        if (removeBtn) {
+            removeBtn.addEventListener('click', () => {
+                URL.revokeObjectURL(url);
+                fileInput.value = '';
+                clearPreview();
+            });
+        }
+    }
+
+    fileInput.addEventListener('change', () => {
+        const file = fileInput.files && fileInput.files[0];
+        renderPreview(file);
+    });
     const sendBtn = el.querySelector('#sendBtn');
 
     const messagesCol = collection(db, 'conversations', String(conversationId), 'messages');
@@ -125,6 +164,7 @@ export function mountChat(el) {
         } catch (e) {}
         textInput.value = '';
         if (fileInput.value) fileInput.value = '';
+        clearPreview();
     });
 }
 

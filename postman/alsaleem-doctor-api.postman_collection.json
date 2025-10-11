@@ -44,6 +44,31 @@
       ]
     },
     {
+      "name": "Lab Tests (Public)",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{baseUrl}}/api/lab-tests",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "lab-tests"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "body": "[{\n  \"id\": 1,\n  \"name\": \"CBC\",\n  \"description\": \"Complete blood count\"\n}]"
+        }
+      ]
+    },
+    {
       "name": "Auth",
       "item": [
         {

@@ -37,10 +37,10 @@
             <td class="px-4 py-2">{{ $user->email }}</td>
             <td class="px-4 py-2">{{ $user->role }}</td>
             <td class="px-4 py-2">
-              <a class="underline" href="{{ route('admin.users.edit', $user) }}">Edit</a>
+              <a class="px-3 py-1.5 border rounded mr-2" href="{{ route('admin.users.edit', $user) }}">Edit</a>
               <form action="{{ route('admin.users.destroy', $user) }}" method="post" class="inline">
                 @csrf @method('delete')
-                <button class="underline" onclick="return confirm('Delete?')">Delete</button>
+                <button class="px-3 py-1.5 border rounded" onclick="return confirm('Delete?')">Delete</button>
               </form>
             </td>
           </tr>

@@ -41,10 +41,10 @@
             <td class="px-4 py-2"><a class="underline" href="{{ asset('storage/'.$result->pdf_path) }}" target="_blank">View</a></td>
             <td class="px-4 py-2">{{ $result->doctor_comment }}</td>
             <td class="px-4 py-2">
-              <a class="underline" href="{{ route('results.edit', $result) }}">Edit</a>
+              <a class="px-3 py-1.5 border rounded mr-2" href="{{ route('results.edit', $result) }}">Edit</a>
               <form action="{{ route('results.destroy', $result) }}" method="post" class="inline">
                 @csrf @method('delete')
-                <button class="underline" onclick="return confirm('Delete?')">Delete</button>
+                <button class="px-3 py-1.5 border rounded" onclick="return confirm('Delete?')">Delete</button>
               </form>
             </td>
           </tr>

@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => App\Http\Middleware\EnsureUserHasRole::class,
             'doctor.token' => App\Http\Middleware\DoctorTokenAuth::class,
+            'setlocale' => App\Http\Middleware\SetLocale::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

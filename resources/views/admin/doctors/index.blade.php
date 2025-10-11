@@ -39,10 +39,10 @@
             <td class="px-4 py-2">{{ $doctor->speciality }}</td>
             <td class="px-4 py-2">{{ $doctor->experience_level }}</td>
             <td class="px-4 py-2">
-              <a class="underline" href="{{ route('admin.doctors.edit', $doctor) }}">Edit</a>
+              <a class="px-3 py-1.5 border rounded mr-2" href="{{ route('admin.doctors.edit', $doctor) }}">Edit</a>
               <form action="{{ route('admin.doctors.destroy', $doctor) }}" method="post" class="inline">
                 @csrf @method('delete')
-                <button class="underline" onclick="return confirm('Delete?')">Delete</button>
+                <button class="px-3 py-1.5 border rounded" onclick="return confirm('Delete?')">Delete</button>
               </form>
             </td>
           </tr>

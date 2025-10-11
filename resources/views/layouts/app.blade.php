@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="{{ app()->getLocale() }}" dir="{{ app()->getLocale()==='ar' ? 'rtl' : 'ltr' }}">
     <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,19 +12,23 @@
             <div class="max-w-7xl mx-auto px-4 py-3 grid grid-cols-3 items-center">
                 <div>
                     @guest
-                        <a href="{{ route('login') }}" class="px-3 py-1.5 border rounded">Login</a>
+                        <a href="{{ route('login') }}" class="px-3 py-1.5 border rounded">{{ __('messages.login') }}</a>
                     @endguest
                 </div>
                 <div class="text-center font-semibold">
-                    {{ config('app.name', 'Alsaleem Call Center') }}
+                    {{ __('messages.app_name') }}
                 </div>
                 <div class="text-right">
                     @auth
                         <form method="post" action="{{ route('logout') }}" class="inline">
                             @csrf
-                            <button class="px-3 py-1.5 border rounded">Logout</button>
+                            <button class="px-3 py-1.5 border rounded">{{ __('messages.logout') }}</button>
                         </form>
                     @endauth
+                    <form method="post" action="{{ route('locale.set', app()->getLocale()==='ar' ? 'en' : 'ar') }}" class="inline ml-2">
+                        @csrf
+                        <button class="px-3 py-1.5 border rounded" title="Switch language">{{ app()->getLocale()==='ar' ? 'EN' : 'AR' }}</button>
+                    </form>
                 </div>
             </div>
         </header>
@@ -39,23 +43,26 @@
                         <nav>
                             <ul class="space-y-1">
                                 <li>
-                                    <a href="{{ url('/') }}" class="block px-3 py-2 rounded {{ request()->is('/') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">Home</a>
+                                    <a href="{{ url('/') }}" class="block px-3 py-2 rounded {{ request()->is('/') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">{{ __('messages.home') }}</a>
                                 </li>
                                 <li>
-                                    <a href="{{ route('results.index') }}" class="block px-3 py-2 rounded {{ request()->is('results*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">Results</a>
+                                    <a href="{{ route('results.index') }}" class="block px-3 py-2 rounded {{ request()->is('results*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">{{ __('messages.results') }}</a>
                                 </li>
                                 <li class="pt-2 text-xs uppercase text-gray-400">Admin</li>
                                 <li>
-                                    <a href="{{ route('admin.users.index') }}" class="block px-3 py-2 rounded {{ request()->is('admin/users*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">Users</a>
+                                    <a href="{{ route('admin.users.index') }}" class="block px-3 py-2 rounded {{ request()->is('admin/users*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">{{ __('messages.users') }}</a>
                                 </li>
                                 <li>
-                                    <a href="{{ route('admin.doctors.index') }}" class="block px-3 py-2 rounded {{ request()->is('admin/doctors*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">Doctors</a>
+                                    <a href="{{ route('admin.doctors.index') }}" class="block px-3 py-2 rounded {{ request()->is('admin/doctors*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">{{ __('messages.doctors') }}</a>
                                 </li>
                                 <li>
-                                    <a href="{{ route('admin.announcements.index') }}" class="block px-3 py-2 rounded {{ request()->is('admin/announcements*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">Announcements</a>
+                                    <a href="{{ route('admin.announcements.index') }}" class="block px-3 py-2 rounded {{ request()->is('admin/announcements*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">{{ __('messages.announcements') }}</a>
                                 </li>
                                 <li>
-                                    <a href="{{ route('admin.sliders.index') }}" class="block px-3 py-2 rounded {{ request()->is('admin/sliders*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">Sliders</a>
+                                    <a href="{{ route('admin.sliders.index') }}" class="block px-3 py-2 rounded {{ request()->is('admin/sliders*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">{{ __('messages.sliders') }}</a>
+                                </li>
+                                <li>
+                                    <a href="{{ route('admin.lab-tests.index') }}" class="block px-3 py-2 rounded {{ request()->is('admin/lab-tests*') ? 'bg-black text-white' : 'hover:bg-gray-100' }}">{{ __('messages.lab_tests') }}</a>
                                 </li>
                             </ul>
                         </nav>
@@ -67,6 +74,7 @@
                 </main>
             </div>
         </div>
+        
     </body>
     </html>
 

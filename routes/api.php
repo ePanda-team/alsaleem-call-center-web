@@ -7,6 +7,7 @@ use App\Models\Doctor;
 use App\Models\Conversation;
 use App\Models\Slider;
 use App\Models\Message;
+use App\Models\LabTest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Route as HttpRoute;
@@ -137,6 +138,12 @@ Route::get('sliders', function () {
         ];
     });
     return response()->json($sliders);
+});
+
+// Public lab tests endpoint for mobile app
+Route::get('lab-tests', function () {
+    $tests = LabTest::orderBy('name')->get(['id','name','description']);
+    return response()->json($tests);
 });
 
 
