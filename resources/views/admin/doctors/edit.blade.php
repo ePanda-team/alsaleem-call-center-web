@@ -2,19 +2,38 @@
 
 @section('content')
 <h1 class="text-xl mb-4">Edit Doctor</h1>
-<form method="post" action="{{ route('admin.doctors.update', $doctor) }}" class="space-y-3">
-    @csrf @method('put')
-    <input name="name" placeholder="Name" class="border p-2 w-full" value="{{ old('name', $doctor->name) }}" />
-    <input name="username" placeholder="Username" class="border p-2 w-full" value="{{ old('username', $doctor->username) }}" />
-    <input name="speciality" placeholder="Speciality" class="border p-2 w-full" value="{{ old('speciality', $doctor->speciality) }}" />
-    <select name="experience_level" class="border p-2 w-full">
-        @foreach(['junior','senior'] as $level)
-          <option value="{{ $level }}" @selected($doctor->experience_level === $level)>{{ $level }}</option>
-        @endforeach
-    </select>
-    <input type="password" name="password" placeholder="New Password (optional)" class="border p-2 w-full" />
-    <button class="px-4 py-2 bg-black text-white">Save</button>
-  </form>
+<div class="max-w-2xl bg-white rounded-lg border border-gray-200 shadow p-6">
+  <form method="post" action="{{ route('admin.doctors.update', $doctor) }}" class="space-y-4">
+      @csrf @method('put')
+      <div>
+        <label class="block text-sm mb-1">Name</label>
+        <input name="name" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" value="{{ old('name', $doctor->name) }}" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Username</label>
+        <input name="username" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" value="{{ old('username', $doctor->username) }}" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Speciality</label>
+        <input name="speciality" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" value="{{ old('speciality', $doctor->speciality) }}" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Experience Level</label>
+        <select name="experience_level" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400">
+            @foreach(['junior','senior'] as $level)
+              <option value="{{ $level }}" @selected($doctor->experience_level === $level)>{{ $level }}</option>
+            @endforeach
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm mb-1">New Password (optional)</label>
+        <input type="password" name="password" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <div class="pt-2">
+        <button class="px-4 py-2 bg-black text-white rounded">Save</button>
+      </div>
+    </form>
+</div>
 @endsection
 
 

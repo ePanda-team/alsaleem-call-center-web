@@ -47,8 +47,8 @@ Route::post('locale/{locale}', function (string $locale) {
     return back();
 })->name('locale.set');
 
-// Admin routes
-Route::middleware(['auth', 'role:admin,supervisor'])->prefix('admin')->name('admin.')->group(function () {
+// Admin routes (localized)
+Route::middleware(['setlocale','auth', 'role:admin,supervisor'])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('users', UserController::class)->except(['show']);
     Route::resource('doctors', DoctorController::class)->except(['show']);
     Route::resource('sliders', SliderController::class)->except(['show']);
@@ -56,8 +56,8 @@ Route::middleware(['auth', 'role:admin,supervisor'])->prefix('admin')->name('adm
     Route::resource('lab-tests', LabTestController::class)->except(['show']);
 });
 
-// Results CRUD for agents and supervisors
-Route::middleware(['auth', 'role:admin,supervisor,agent'])->group(function () {
+// Results CRUD for agents and supervisors (localized)
+Route::middleware(['setlocale','auth', 'role:admin,supervisor,agent'])->group(function () {
     Route::resource('results', TestResultController::class)->parameters(['results' => 'result']);
     Route::get('chat/{doctor}', [ChatController::class, 'showForAgent'])->name('chat.show');
 });

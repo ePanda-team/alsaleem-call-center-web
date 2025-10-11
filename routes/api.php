@@ -58,6 +58,17 @@ Route::middleware('doctor.token')->group(function () {
         return response()->json($items);
     });
 
+    Route::post('doctor/results/{result}/comment', function (Request $request, TestResult $result) {
+        $doctor = $request->attributes->get('doctor');
+        abort_unless($result->doctor_id === $doctor->id, 403);
+        $data = $request->validate([
+            'doctor_comment' => ['nullable', 'string'],
+        ]);
+        $result->doctor_comment = $data['doctor_comment'] ?? null;
+        $result->save();
+        return response()->json(['ok' => true]);
+    });
+
     Route::get('doctor/conversations/{conversation}/messages', function (Request $request, Conversation $conversation) {
         $doctor = $request->attributes->get('doctor');
         abort_unless($conversation->doctor_id === $doctor->id, 403);

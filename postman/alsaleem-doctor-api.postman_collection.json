@@ -312,11 +312,49 @@
           "body": "{\n  \"id\": 1\n}"
         }
       ]
+    },
+    {
+      "name": "Result Comment (Doctor)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"doctor_comment\": \"Looks good\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/doctor/results/{{resultId}}/comment",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctor",
+            "results",
+            "{{resultId}}",
+            "comment"
+          ]
+        }
+      },
+      "response": [
+        {
+          "name": "200 OK",
+          "status": "OK",
+          "code": 200,
+          "_postman_previewlanguage": "json",
+          "body": "{\n  \"ok\": true\n}"
+        }
+      ]
     }
   ],
   "variable": [
     { "key": "baseUrl", "value": "http://localhost" },
-    { "key": "doctorToken", "value": "" }
+    { "key": "doctorToken", "value": "" },
+    { "key": "conversationId", "value": "" },
+    { "key": "resultId", "value": "" }
   ]
 }
 

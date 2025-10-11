@@ -91,6 +91,18 @@ export function mountChat(el) {
     const filePreview = el.querySelector('#filePreview');
     const recordBtn = el.querySelector('#recordBtn');
     const recTimerEl = el.querySelector('#recTimer');
+    const sendBtn = el.querySelector('#sendBtn');
+    const originalSendText = sendBtn ? sendBtn.textContent : 'Send';
+    function setSending(isSending) {
+        if (!sendBtn) return;
+        sendBtn.disabled = !!isSending;
+        sendBtn.textContent = isSending ? 'Sending…' : originalSendText;
+        if (isSending) {
+            sendBtn.classList.add('opacity-60','cursor-not-allowed');
+        } else {
+            sendBtn.classList.remove('opacity-60','cursor-not-allowed');
+        }
+    }
 
     let selectedFile = null;
     let mediaRecorder = null;
@@ -205,7 +217,7 @@ export function mountChat(el) {
             }
         });
     }
-    const sendBtn = el.querySelector('#sendBtn');
+    // sendBtn already defined above
 
     const messagesCol = collection(db, 'conversations', String(conversationId), 'messages');
     const scrollToBottom = () => {
@@ -265,32 +277,40 @@ export function mountChat(el) {
         if (!body && !file) return;
         let attachmentUrl = null;
         let attachmentType = null;
-        if (file) {
-            attachmentUrl = await uploadAttachment(storage, conversationId, file);
-            attachmentType = detectAttachmentType(file);
-        }
-        await addDoc(messagesCol, {
-            body: body || null,
-            attachmentUrl,
-            attachmentType,
-            senderType: 'agent',
-            createdAt: serverTimestamp(),
-        });
+        setSending(true);
         try {
-            await fetch(`/api/activity/conversation/${conversationId}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                },
-                body: JSON.stringify({ body, sender_type: 'agent' })
+            if (file) {
+                attachmentUrl = await uploadAttachment(storage, conversationId, file);
+                attachmentType = detectAttachmentType(file);
+            }
+            await addDoc(messagesCol, {
+                body: body || null,
+                attachmentUrl,
+                attachmentType,
+                senderType: 'agent',
+                createdAt: serverTimestamp(),
             });
-        } catch (e) {}
-        textInput.value = '';
-        if (fileInput.value) fileInput.value = '';
-        selectedFile = null;
-        clearPreview();
-        scrollToBottom();
+            try {
+                await fetch(`/api/activity/conversation/${conversationId}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    },
+                    body: JSON.stringify({ body, sender_type: 'agent' })
+                });
+            } catch (e) {}
+            textInput.value = '';
+            if (fileInput.value) fileInput.value = '';
+            selectedFile = null;
+            clearPreview();
+            scrollToBottom();
+        } catch (err) {
+            console.error('Failed to send message', err);
+            alert('Failed to send message. Please try again.');
+        } finally {
+            setSending(false);
+        }
     });
 }
 

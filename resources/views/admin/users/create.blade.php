@@ -2,18 +2,34 @@
 
 @section('content')
 <h1 class="text-xl mb-4">Create User</h1>
-<form method="post" action="{{ route('admin.users.store') }}" class="space-y-3">
-    @csrf
-    <input name="name" placeholder="Name" class="border p-2 w-full" value="{{ old('name') }}" />
-    <input name="email" placeholder="Email" class="border p-2 w-full" value="{{ old('email') }}" />
-    <input type="password" name="password" placeholder="Password" class="border p-2 w-full" />
-    <select name="role" class="border p-2 w-full">
-        <option value="admin">admin</option>
-        <option value="supervisor">supervisor</option>
-        <option value="agent" selected>agent</option>
-    </select>
-    <button class="px-4 py-2 bg-black text-white">Save</button>
-  </form>
+<div class="max-w-2xl bg-white rounded-lg border border-gray-200 shadow p-6">
+  <form method="post" action="{{ route('admin.users.store') }}" class="space-y-4">
+      @csrf
+      <div>
+        <label class="block text-sm mb-1">Name</label>
+        <input name="name" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" value="{{ old('name') }}" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Email</label>
+        <input name="email" type="email" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" value="{{ old('email') }}" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Password</label>
+        <input type="password" name="password" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Role</label>
+        <select name="role" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="admin">admin</option>
+            <option value="supervisor">supervisor</option>
+            <option value="agent" selected>agent</option>
+        </select>
+      </div>
+      <div class="pt-2">
+        <button class="px-4 py-2 bg-black text-white rounded">Save</button>
+      </div>
+    </form>
+</div>
 @endsection
 
 
