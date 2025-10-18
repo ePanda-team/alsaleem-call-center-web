@@ -37,6 +37,7 @@ class UserController extends Controller
             'email' => ['required', 'email', 'unique:users,email'],
             'password' => ['required', 'string', 'min:6'],
             'role' => ['required', 'in:admin,supervisor,agent'],
+            'branch_assignment' => ['nullable', 'string', 'max:255'],
         ]);
         User::create($data);
         return redirect()->route('admin.users.index')->with('status', 'User created');
@@ -54,6 +55,7 @@ class UserController extends Controller
             'email' => ['required', 'email', 'unique:users,email,' . $user->id],
             'password' => ['nullable', 'string', 'min:6'],
             'role' => ['required', 'in:admin,supervisor,agent'],
+            'branch_assignment' => ['nullable', 'string', 'max:255'],
         ]);
         if (empty($data['password'])) {
             unset($data['password']);

@@ -40,6 +40,7 @@ class DoctorController extends Controller
             'username' => ['required', 'string', 'max:255', 'unique:doctors,username'],
             'speciality' => ['nullable', 'string', 'max:255'],
             'experience_level' => ['required', 'in:junior,senior'],
+            'phone' => ['nullable', 'string', 'max:255'],
             'password' => ['required', 'string', 'min:6'],
         ]);
         $doctor = Doctor::create($data);
@@ -60,6 +61,7 @@ class DoctorController extends Controller
             'username' => ['required', 'string', 'max:255', 'unique:doctors,username,' . $doctor->id],
             'speciality' => ['nullable', 'string', 'max:255'],
             'experience_level' => ['required', 'in:junior,senior'],
+            'phone' => ['nullable', 'string', 'max:255'],
             'password' => ['nullable', 'string', 'min:6'],
         ]);
         if (empty($data['password'])) {

@@ -10,6 +10,10 @@
         <input name="patient_name" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#FE0003]" value="{{ old('patient_name', $result->patient_name) }}" />
       </div>
       <div>
+        <label class="block text-sm mb-1">{{ __('messages.hospital') }}</label>
+        <input name="hospital" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#FE0003]" value="{{ old('hospital', $result->hospital) }}" placeholder="{{ __('messages.hospital_placeholder') }}" />
+      </div>
+      <div>
         <label class="block text-sm mb-1">{{ __('messages.lab_branch') }}</label>
         <select name="lab_branch" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#FE0003]">
             <option value="">{{ __('messages.select_lab_branch') }}</option>

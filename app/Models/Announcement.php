@@ -12,6 +12,15 @@ class Announcement extends Model
     protected $fillable = [
         'title',
         'body',
+        'target_specialties',
+        'target_experience_levels',
+        'media_files',
+    ];
+
+    protected $casts = [
+        'target_specialties' => 'array',
+        'target_experience_levels' => 'array',
+        'media_files' => 'array',
     ];
 
     public function views()

@@ -15,6 +15,8 @@ class Doctor extends Authenticatable
         'username',
         'speciality',
         'experience_level',
+        'phone',
+        'fcm_token',
         'password',
     ];
 

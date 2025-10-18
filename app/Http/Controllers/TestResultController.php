@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Doctor;
 use App\Models\TestResult;
 use App\Models\LabBranch;
+use App\Services\NotificationService;
 use Illuminate\Http\Request;
 
 class TestResultController extends Controller
@@ -30,24 +31,35 @@ class TestResultController extends Controller
     {
         $doctors = Doctor::orderBy('name')->get();
         $labBranches = LabBranch::where('is_active', true)->orderBy('name')->get();
-        return view('results.create', compact('doctors', 'labBranches'));
+        $defaultBranch = auth()->user()->branch_assignment;
+        return view('results.create', compact('doctors', 'labBranches', 'defaultBranch'));
     }
 
     public function store(Request $request)
     {
         $data = $request->validate([
             'patient_name' => ['required', 'string', 'max:255'],
+            'hospital' => ['nullable', 'string', 'max:255'],
             'lab_branch' => ['required', 'string', 'max:255'],
             'doctor_id' => ['required', 'exists:doctors,id'],
             'pdf' => ['required', 'file', 'mimetypes:application/pdf'],
         ]);
         $path = $request->file('pdf')->store('results', 'public');
-        TestResult::create([
+        $testResult = TestResult::create([
             'patient_name' => $data['patient_name'],
+            'hospital' => $data['hospital'],
             'lab_branch' => $data['lab_branch'],
             'doctor_id' => $data['doctor_id'],
             'pdf_path' => $path,
         ]);
+        
+        // Send notification to the assigned doctor
+        $doctor = Doctor::find($data['doctor_id']);
+        if ($doctor) {
+            $notificationService = new NotificationService();
+            $notificationService->sendNewResultNotification($doctor, $testResult);
+        }
+        
         return redirect()->route('results.index')->with('status', 'Result added');
     }
 
@@ -62,6 +74,7 @@ class TestResultController extends Controller
     {
         $data = $request->validate([
             'patient_name' => ['required', 'string', 'max:255'],
+            'hospital' => ['nullable', 'string', 'max:255'],
             'lab_branch' => ['required', 'string', 'max:255'],
             'doctor_id' => ['required', 'exists:doctors,id'],
             'pdf' => ['nullable', 'file', 'mimetypes:application/pdf'],
@@ -70,6 +83,7 @@ class TestResultController extends Controller
             $result->pdf_path = $request->file('pdf')->store('results', 'public');
         }
         $result->patient_name = $data['patient_name'];
+        $result->hospital = $data['hospital'];
         $result->lab_branch = $data['lab_branch'];
         $result->doctor_id = $data['doctor_id'];
         $result->save();

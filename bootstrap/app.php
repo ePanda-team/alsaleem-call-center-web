@@ -1,5 +1,8 @@
 <?php
 
+// Load upload configuration
+require_once __DIR__.'/upload_config.php';
+
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -16,6 +19,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => App\Http\Middleware\EnsureUserHasRole::class,
             'doctor.token' => App\Http\Middleware\DoctorTokenAuth::class,
             'setlocale' => App\Http\Middleware\SetLocale::class,
+            'upload.limits' => App\Http\Middleware\SetUploadLimits::class,
+        ]);
+        
+        // Apply upload limits globally
+        $middleware->web(append: [
+            App\Http\Middleware\SetUploadLimits::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

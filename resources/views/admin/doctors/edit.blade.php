@@ -24,11 +24,15 @@
       </div>
       <div>
         <label class="block text-sm mb-1">{{ __('messages.experience_level') }}</label>
-        <select name="experience_level" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <select name="experience_level" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#FE0003]">
             @foreach(['junior','senior'] as $level)
               <option value="{{ $level }}" @selected($doctor->experience_level === $level)>{{ $level }}</option>
             @endforeach
         </select>
+      </div>
+      <div>
+        <label class="block text-sm mb-1">{{ __('messages.phone') }}</label>
+        <input name="phone" type="tel" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#FE0003]" value="{{ old('phone', $doctor->phone) }}" placeholder="{{ __('messages.phone_placeholder') }}" />
       </div>
       <div>
         <label class="block text-sm mb-1">{{ __('messages.password') }}</label>

@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 function getFirebaseConfig() {
@@ -331,6 +331,25 @@ export function mountChat(el) {
             let html = '';
             if (m.body) {
                 html += `<div class="whitespace-pre-wrap">${m.body}</div>`;
+                if (m.edited) {
+                    html += `<div class="text-xs opacity-70 mt-1">(edited)</div>`;
+                }
+            }
+            
+            // Add edit/delete buttons for messages sent by current user
+            if (isMine) {
+                html += `<div class="mt-2 flex gap-1 justify-end">
+                    <button onclick="editMessage('${doc.id}', '${m.body?.replace(/'/g, "\\'") || ''}')" class="text-xs px-2 py-1 bg-white bg-opacity-20 rounded hover:bg-opacity-30 transition-colors" title="Edit">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                    </button>
+                    <button onclick="deleteMessage('${doc.id}')" class="text-xs px-2 py-1 bg-white bg-opacity-20 rounded hover:bg-opacity-30 transition-colors" title="Delete">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </div>`;
             }
             // Normalize attachment fields coming from different sources (Firestore, API, legacy)
             const att = (m.attachment) || {};
@@ -406,6 +425,36 @@ export function mountChat(el) {
             setSending(false);
         }
     });
+    
+    // Global functions for edit and delete
+    window.editMessage = async function(messageId, currentText) {
+        const newText = prompt('Edit message:', currentText);
+        if (newText !== null && newText !== currentText) {
+            try {
+                const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+                await updateDoc(messageRef, {
+                    body: newText,
+                    edited: true,
+                    editedAt: serverTimestamp()
+                });
+            } catch (error) {
+                console.error('Error editing message:', error);
+                alert('Failed to edit message');
+            }
+        }
+    };
+    
+    window.deleteMessage = async function(messageId) {
+        if (confirm('Are you sure you want to delete this message?')) {
+            try {
+                const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
+                await deleteDoc(messageRef);
+            } catch (error) {
+                console.error('Error deleting message:', error);
+                alert('Failed to delete message');
+            }
+        }
+    };
 }
 
 

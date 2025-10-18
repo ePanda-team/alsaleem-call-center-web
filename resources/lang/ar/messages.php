@@ -102,6 +102,21 @@ return [
     'no_lab_branches_found' => 'لم يتم العثور على فروع مختبر',
     'code' => 'الكود',
     'select_speciality' => 'اختر التخصص',
+    'branch_assignment' => 'تعيين الفرع',
+    'hospital' => 'المستشفى',
+    'hospital_placeholder' => 'أدخل اسم المستشفى',
+    'phone_placeholder' => 'أدخل رقم الهاتف',
+    'target_specialties' => 'التخصصات المستهدفة',
+    'target_experience_levels' => 'مستويات الخبرة المستهدفة',
+    'target_specialties_help' => 'اختر التخصصات المستهدفة (اترك فارغ للجميع)',
+    'target_experience_help' => 'اختر مستويات الخبرة المستهدفة (اترك فارغ للجميع)',
+    'junior' => 'مبتدئ',
+    'senior' => 'خبير',
+    'media' => 'الوسائط',
+    'media_help' => 'رفع صورة، فيديو، PDF، أو مستند',
+    'current_media' => 'الوسائط الحالية',
+    'multiple_files_allowed' => 'يُسمح برفع ملفات متعددة',
+    'media_preview' => 'معاينة الوسائط',
 ];
 
 

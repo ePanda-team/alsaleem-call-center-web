@@ -11,6 +11,7 @@ class TestResult extends Model
 
     protected $fillable = [
         'patient_name',
+        'hospital',
         'lab_branch',
         'doctor_id',
         'pdf_path',

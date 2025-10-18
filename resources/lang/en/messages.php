@@ -102,6 +102,21 @@ return [
     'no_lab_branches_found' => 'No lab branches found',
     'code' => 'Code',
     'select_speciality' => 'Select Speciality',
+    'branch_assignment' => 'Branch Assignment',
+    'hospital' => 'Hospital',
+    'hospital_placeholder' => 'Enter hospital name',
+    'phone_placeholder' => 'Enter phone number',
+    'target_specialties' => 'Target Specialties',
+    'target_experience_levels' => 'Target Experience Levels',
+    'target_specialties_help' => 'Select specialties to target (leave empty for all)',
+    'target_experience_help' => 'Select experience levels to target (leave empty for all)',
+    'junior' => 'Junior',
+    'senior' => 'Senior',
+    'media' => 'Media',
+    'media_help' => 'Upload image, video, PDF, or document',
+    'current_media' => 'Current media',
+    'multiple_files_allowed' => 'Multiple files allowed',
+    'media_preview' => 'Media Preview',
 ];
 
 

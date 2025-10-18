@@ -32,6 +32,22 @@ Route::middleware('doctor.token')->group(function () {
         return response()->json($doctor);
     });
 
+    Route::post('doctor/fcm-token', function (Request $request) {
+        $doctor = $request->attributes->get('doctor');
+        
+        $data = $request->validate([
+            'fcm_token' => ['required', 'string', 'max:1000'],
+        ]);
+        
+        $doctor->fcm_token = $data['fcm_token'];
+        $doctor->save();
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'FCM token updated successfully'
+        ]);
+    });
+
     Route::get('doctor/conversation', function (Request $request) {
         $doctor = $request->attributes->get('doctor');
         $conversation = Conversation::firstOrCreate(['doctor_id' => $doctor->id]);
@@ -56,9 +72,25 @@ Route::middleware('doctor.token')->group(function () {
 
     Route::get('doctor/announcements', function (Request $request) {
         $doctor = $request->attributes->get('doctor');
-        $items = Announcement::orderByDesc('id')->paginate(20);
         
-        // Track views for all announcements in this request
+        // Filter announcements based on targeting
+        $query = Announcement::query();
+        
+        // Apply specialty targeting
+        $query->where(function ($q) use ($doctor) {
+            $q->whereNull('target_specialties')
+              ->orWhereJsonContains('target_specialties', $doctor->speciality);
+        });
+        
+        // Apply experience level targeting
+        $query->where(function ($q) use ($doctor) {
+            $q->whereNull('target_experience_levels')
+              ->orWhereJsonContains('target_experience_levels', $doctor->experience_level);
+        });
+        
+        $items = $query->orderByDesc('id')->paginate(20);
+        
+        // Track views for all announcements in this request and replace [dr] placeholder
         foreach ($items->items() as $announcement) {
             \App\Models\AnnouncementView::updateOrCreate(
                 [
@@ -69,6 +101,10 @@ Route::middleware('doctor.token')->group(function () {
                     'viewed_at' => now(),
                 ]
             );
+            
+            // Replace [dr] placeholder with doctor's name
+            $announcement->title = str_replace('[dr]', $doctor->name, $announcement->title);
+            $announcement->body = str_replace('[dr]', $doctor->name, $announcement->body);
         }
         
         return response()->json($items);

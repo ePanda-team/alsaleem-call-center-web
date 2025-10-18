@@ -16,6 +16,41 @@ use App\Models\Message;
 use App\Models\Doctor;
 use App\Models\TestResult;
 
+// Test upload limits
+Route::get('/test-upload-limits', function () {
+    return response()->json([
+        'upload_max_filesize' => ini_get('upload_max_filesize'),
+        'post_max_size' => ini_get('post_max_size'),
+        'max_file_uploads' => ini_get('max_file_uploads'),
+        'max_execution_time' => ini_get('max_execution_time'),
+        'memory_limit' => ini_get('memory_limit'),
+    ]);
+});
+
+// Test FCM notification (for testing purposes)
+Route::get('/test-fcm', function () {
+    $notificationService = new \App\Services\NotificationService();
+    $doctor = \App\Models\Doctor::whereNotNull('fcm_token')->first();
+    
+    if (!$doctor) {
+        return response()->json(['error' => 'No doctor with FCM token found']);
+    }
+    
+    $result = $notificationService->sendToDoctor(
+        $doctor, 
+        'Test Notification', 
+        'This is a test notification from the system',
+        ['type' => 'test']
+    );
+    
+    return response()->json([
+        'success' => $result !== false,
+        'doctor_id' => $doctor->id,
+        'doctor_name' => $doctor->name,
+        'result' => $result
+    ]);
+});
+
 Route::middleware('setlocale')->get('/', function () {
     $sliders = Slider::orderBy('position')->take(3)->get();
     $doctorCount = Doctor::count();
