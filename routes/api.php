@@ -187,6 +187,8 @@ HttpRoute::middleware(['web', 'auth'])->post('/activity/conversation/{conversati
         $conversation->unread_doctor_count = $conversation->unread_doctor_count + 1;
     }
     $conversation->save();
+    $notificationService = new \App\Services\NotificationService();
+    $notificationService->sendNewMessageNotification($conversation->doctor, $conversation);
     return response()->json(['ok' => true]);
 });
 

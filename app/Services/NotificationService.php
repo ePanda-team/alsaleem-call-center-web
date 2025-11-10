@@ -5,17 +5,9 @@ namespace App\Services;
 use App\Models\Doctor;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-
+use Google_Client;
 class NotificationService
 {
-    private $fcmServerKey;
-    private $fcmUrl = 'https://fcm.googleapis.com/fcm/send';
-
-    public function __construct()
-    {
-        $this->fcmServerKey = config('services.fcm.server_key');
-    }
-
     /**
      * Send notification to a specific doctor
      */
@@ -69,10 +61,7 @@ class NotificationService
      */
     public function sendToToken(string $token, string $title, string $body, array $data = [])
     {
-        if (!$this->fcmServerKey) {
-            Log::error("FCM server key not configured");
-            return false;
-        }
+        Log::info('Sending notification to token: ' . $token);
 
         $payload = [
             'to' => $token,
@@ -92,11 +81,11 @@ class NotificationService
      */
     public function sendToMultipleTokens(array $tokens, string $title, string $body, array $data = [])
     {
-        if (!$this->fcmServerKey) {
-            Log::error("FCM server key not configured");
-            return false;
-        }
 
+        foreach($tokens as $token)
+        {
+            Log::info('Sending notification to token: ' . $token);
+        }
         $payload = [
             'registration_ids' => $tokens,
             'notification' => [
@@ -110,16 +99,53 @@ class NotificationService
         return $this->sendFCMRequest($payload);
     }
 
+    private function getAccessToken()
+    {
+        $credentialsPath = storage_path('app/alsaleem-call-center-77b0f18015c6.json'); // Path to your service account file
+
+        $client = new Google_Client();
+        $client->setAuthConfig($credentialsPath);
+        $client->addScope('https://www.googleapis.com/auth/firebase.messaging');
+
+        $token = $client->fetchAccessTokenWithAssertion();
+        return $token['access_token'];
+    }
+
     /**
      * Send the actual FCM request
      */
     private function sendFCMRequest(array $payload)
     {
         try {
-            $response = Http::withHeaders([
-                'Authorization' => 'key=' . $this->fcmServerKey,
-                'Content-Type' => 'application/json',
-            ])->post($this->fcmUrl, $payload);
+            try{
+                $client = new \GuzzleHttp\Client();
+                $response = $client->post('https://fcm.googleapis.com/v1/projects/alsaleem-call-center/messages:send', [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $this->getAccessToken(),
+                        'Content-Type' => 'application/json',
+                    ],
+                    'json' => [
+                        'message' => [
+                            'token' => $payload['to'],
+                            'notification' => [
+                                "title" => $payload['notification']['title'],
+                                "body" => $payload['notification']['body']
+                            ],
+                            'data' => [
+                                'click_action' => 'FLUTTER_NOTIFICATION_CLICK',
+                            ]
+                        ],
+                    ],
+                ]);
+                if($response->getStatusCode() == 200)
+                {
+                    return true;
+                }
+            }catch(\Exception $e) 
+            {
+                Log::error($e->getMessage());
+                return false;
+            }
 
             if ($response->successful()) {
                 $responseData = $response->json();
@@ -211,7 +237,7 @@ class NotificationService
             'type' => 'new_message',
             'conversation_id' => $conversation->id,
         ];
-
+        Log::info('Sending new message notification to doctor: ' . $doctor->name);
         return $this->sendToDoctor($doctor, $title, $body, $data);
     }
 }
