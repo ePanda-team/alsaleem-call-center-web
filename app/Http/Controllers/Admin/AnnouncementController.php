@@ -76,8 +76,14 @@ class AnnouncementController extends Controller
         
         $mediaFiles = [];
         if ($request->hasFile('media')) {
+            $uploadDir = public_path('storage/announcements');
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
             foreach ($request->file('media') as $file) {
-                $path = $file->store('announcements', 'public');
+                $filename = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
+                $file->move($uploadDir, $filename);
+                $path = 'announcements/' . $filename;
                 $mediaFiles[] = [
                     'path' => $path,
                     'type' => $file->getMimeType(),
@@ -117,8 +123,14 @@ class AnnouncementController extends Controller
         
         $mediaFiles = $announcement->media_files ?? [];
         if ($request->hasFile('media')) {
+            $uploadDir = public_path('storage/announcements');
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
             foreach ($request->file('media') as $file) {
-                $path = $file->store('announcements', 'public');
+                $filename = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
+                $file->move($uploadDir, $filename);
+                $path = 'announcements/' . $filename;
                 $mediaFiles[] = [
                     'path' => $path,
                     'type' => $file->getMimeType(),
@@ -135,6 +147,17 @@ class AnnouncementController extends Controller
 
     public function destroy(Announcement $announcement)
     {
+        // Delete associated media files
+        if ($announcement->media_files && is_array($announcement->media_files)) {
+            foreach ($announcement->media_files as $media) {
+                if (isset($media['path'])) {
+                    $filePath = public_path('storage/' . $media['path']);
+                    if (file_exists($filePath)) {
+                        unlink($filePath);
+                    }
+                }
+            }
+        }
         $announcement->delete();
         return back()->with('status', 'Announcement deleted');
     }

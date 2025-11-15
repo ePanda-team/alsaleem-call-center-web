@@ -44,7 +44,13 @@ class TestResultController extends Controller
             'doctor_id' => ['required', 'exists:doctors,id'],
             'pdf' => ['required', 'file', 'mimetypes:application/pdf'],
         ]);
-        $path = $request->file('pdf')->store('results', 'public');
+        $uploadDir = public_path('storage/results');
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        $filename = time() . '_' . uniqid() . '_' . $request->file('pdf')->getClientOriginalName();
+        $request->file('pdf')->move($uploadDir, $filename);
+        $path = 'results/' . $filename;
         $testResult = TestResult::create([
             'patient_name' => $data['patient_name'],
             'hospital' => $data['hospital'],
@@ -80,7 +86,21 @@ class TestResultController extends Controller
             'pdf' => ['nullable', 'file', 'mimetypes:application/pdf'],
         ]);
         if ($request->hasFile('pdf')) {
-            $result->pdf_path = $request->file('pdf')->store('results', 'public');
+            // Delete old PDF if exists
+            if ($result->pdf_path) {
+                $oldPath = public_path('storage/' . $result->pdf_path);
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+            $uploadDir = public_path('storage/results');
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            $filename = time() . '_' . uniqid() . '_' . $request->file('pdf')->getClientOriginalName();
+            $request->file('pdf')->move($uploadDir, $filename);
+            $path = 'results/' . $filename;
+            $result->pdf_path = $path;
         }
         $result->patient_name = $data['patient_name'];
         $result->hospital = $data['hospital'];
@@ -92,6 +112,13 @@ class TestResultController extends Controller
 
     public function destroy(TestResult $result)
     {
+        // Delete associated PDF file
+        if ($result->pdf_path) {
+            $filePath = public_path('storage/' . $result->pdf_path);
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
         $result->delete();
         return back()->with('status', 'Result deleted');
     }

@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Slider;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class SliderController extends Controller
 {
@@ -27,7 +26,13 @@ class SliderController extends Controller
             'image' => ['required', 'image'],
             'position' => ['nullable', 'integer', 'min:0'],
         ]);
-        $path = $request->file('image')->store('sliders', 'public');
+        $uploadDir = public_path('storage/sliders');
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        $filename = time() . '_' . uniqid() . '_' . $request->file('image')->getClientOriginalName();
+        $request->file('image')->move($uploadDir, $filename);
+        $path = 'sliders/' . $filename;
         Slider::create([
             'title' => $data['title'] ?? null,
             'image_path' => $path,
@@ -49,7 +54,20 @@ class SliderController extends Controller
             'position' => ['nullable', 'integer', 'min:0'],
         ]);
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('sliders', 'public');
+            // Delete old image if exists
+            if ($slider->image_path) {
+                $oldPath = public_path('storage/' . $slider->image_path);
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+            $uploadDir = public_path('storage/sliders');
+            if (!file_exists($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            $filename = time() . '_' . uniqid() . '_' . $request->file('image')->getClientOriginalName();
+            $request->file('image')->move($uploadDir, $filename);
+            $path = 'sliders/' . $filename;
             $slider->image_path = $path;
         }
         $slider->title = $data['title'] ?? null;
@@ -62,6 +80,13 @@ class SliderController extends Controller
 
     public function destroy(Slider $slider)
     {
+        // Delete associated image file
+        if ($slider->image_path) {
+            $filePath = public_path('storage/' . $slider->image_path);
+            if (file_exists($filePath)) {
+                unlink($filePath);
+            }
+        }
         $slider->delete();
         return back()->with('status', 'Slider deleted');
     }
