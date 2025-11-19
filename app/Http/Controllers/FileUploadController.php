@@ -21,8 +21,12 @@ class FileUploadController extends Controller
 
         $file = $request->file('file');
         
-        // Sanitize the original filename
+        // Get file properties before moving (since move() invalidates the file object)
         $originalName = $file->getClientOriginalName();
+        $fileSize = $file->getSize();
+        $mimeType = $file->getMimeType();
+        
+        // Sanitize the original filename
         $sanitizedName = preg_replace('/[^a-zA-Z0-9._-]/', '_', pathinfo($originalName, PATHINFO_FILENAME));
         $extension = $file->getClientOriginalExtension();
         
@@ -46,8 +50,8 @@ class FileUploadController extends Controller
             'path' => $path,
             'filename' => $filename,
             'original_name' => $originalName,
-            'size' => $file->getSize(),
-            'mime_type' => $file->getMimeType(),
+            'size' => $fileSize,
+            'mime_type' => $mimeType,
         ], 201);
     }
 }
