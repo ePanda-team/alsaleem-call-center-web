@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
 class FileUploadController extends Controller
@@ -30,8 +29,13 @@ class FileUploadController extends Controller
         // Generate a unique filename
         $filename = time() . '_' . Str::random(10) . '_' . $sanitizedName . ($extension ? '.' . $extension : '');
         
-        // Store the file in public storage
-        $path = $file->storeAs('uploads', $filename, 'public');
+        // Store the file in public storage directory
+        $uploadDir = public_path('storage/uploads');
+        if (!file_exists($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+        $file->move($uploadDir, $filename);
+        $path = 'uploads/' . $filename;
         
         // Generate the URL
         $url = asset('storage/' . $path);
