@@ -41,9 +41,13 @@ class FileUploadController extends Controller
         $file->move($uploadDir, $filename);
         $path = 'uploads/' . $filename;
         
-        // For M4A files, ensure proper MIME type is detected
-        if (strtolower($extension) === 'm4a' || $mimeType === 'audio/mp4' || $mimeType === 'audio/m4a') {
-            $mimeType = 'audio/mp4'; // Standardize to audio/mp4 for M4A files
+        // Ensure proper MIME type is detected for audio files
+        if (strtolower($extension) === 'webm' || $mimeType === 'audio/webm') {
+            $mimeType = 'audio/webm'; // WebM with Opus codec
+        } elseif (strtolower($extension) === 'ogg' || $mimeType === 'audio/ogg') {
+            $mimeType = 'audio/ogg'; // OGG with Opus codec
+        } elseif (strtolower($extension) === 'm4a' || $mimeType === 'audio/mp4' || $mimeType === 'audio/m4a') {
+            $mimeType = 'audio/mp4'; // M4A files
         }
         
         // Generate the URL

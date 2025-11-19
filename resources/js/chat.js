@@ -68,10 +68,10 @@ function guessAttachmentTypeFromUrl(url) {
 function guessMimeForAudio(url) {
     const u = (url || '').toLowerCase();
     if (u.includes('.mp3')) return 'audio/mpeg';
+    if (u.includes('.webm')) return 'audio/webm';
+    if (u.includes('.ogg')) return 'audio/ogg';
     if (u.includes('.m4a') || u.includes('.aac')) return 'audio/mp4';
     if (u.includes('.wav')) return 'audio/wav';
-    if (u.includes('.ogg')) return 'audio/ogg';
-    if (u.includes('.webm')) return 'audio/webm';
     return 'audio/*';
 }
 
@@ -190,23 +190,26 @@ export function mountChat(el) {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             recordedChunks = [];
-            // Only use M4A-compatible formats (MP4/AAC)
-            const m4aFormats = [
-                'audio/mp4;codecs=mp4a',  // MP4 with AAC codec (M4A format)
-                'audio/mp4'               // MP4 container (M4A compatible)
+            // Use Opus/WebM format - more universally compatible than M4A
+            // Opus is supported by Chrome, Firefox, Edge and most mobile players
+            const opusFormats = [
+                'audio/webm;codecs=opus',  // WebM with Opus codec (best compatibility)
+                'audio/webm',               // WebM container
+                'audio/ogg;codecs=opus',    // OGG with Opus (Firefox fallback)
+                'audio/ogg'                 // OGG container
             ];
             let chosen = '';
-            for (const t of m4aFormats) {
+            for (const t of opusFormats) {
                 if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) {
                     chosen = t;
                     break;
                 }
             }
             
-            // If M4A format is not supported, show error
+            // If Opus format is not supported, show error
             if (!chosen) {
                 stream.getTracks().forEach(t => t.stop());
-                alert('M4A audio recording is not supported in this browser. Please use a modern browser that supports MP4/AAC recording.');
+                alert('Audio recording is not supported in this browser. Please use a modern browser (Chrome, Firefox, or Edge).');
                 return;
             }
             
@@ -225,12 +228,16 @@ export function mountChat(el) {
                 // Wait a bit to ensure all data is available
                 await new Promise(resolve => setTimeout(resolve, 100));
                 
+                // Determine file extension based on chosen format
+                const extension = chosen.includes('webm') ? 'webm' : 'ogg';
+                const mimeType = chosen.includes('webm') ? 'audio/webm' : 'audio/ogg';
+                
                 // Create blob with explicit MIME type
-                const m4aBlob = new Blob(recordedChunks, { type: 'audio/mp4' });
+                const audioBlob = new Blob(recordedChunks, { type: mimeType });
                 
                 // Ensure the file has proper extension and MIME type
-                selectedFile = new File([m4aBlob], `voice-${Date.now()}.m4a`, { 
-                    type: 'audio/mp4',
+                selectedFile = new File([audioBlob], `voice-${Date.now()}.${extension}`, { 
+                    type: mimeType,
                     lastModified: Date.now()
                 });
                 

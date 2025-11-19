@@ -1,19 +1,24 @@
 # Set proper MIME types for audio files
 <IfModule mod_mime.c>
+    AddType audio/webm .webm
+    AddType audio/ogg .ogg
     AddType audio/mp4 .m4a
     AddType audio/mp4 .mp4
     AddType audio/mpeg .mp3
     AddType audio/wav .wav
-    AddType audio/ogg .ogg
-    AddType audio/webm .webm
     AddType audio/aac .aac
 </IfModule>
 
 # Enable CORS for audio files (if needed)
 <IfModule mod_headers.c>
-    <FilesMatch "\.(m4a|mp3|wav|ogg|webm|aac)$">
+    <FilesMatch "\.(webm|ogg|m4a|mp3|wav|aac)$">
         Header set Access-Control-Allow-Origin "*"
-        Header set Content-Type "audio/mp4"
+    </FilesMatch>
+    <FilesMatch "\.webm$">
+        Header set Content-Type "audio/webm"
+    </FilesMatch>
+    <FilesMatch "\.ogg$">
+        Header set Content-Type "audio/ogg"
     </FilesMatch>
 </IfModule>
 

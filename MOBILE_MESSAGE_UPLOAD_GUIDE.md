@@ -41,9 +41,10 @@ This guide explains how to upload files and send messages with attachments in th
    **Important:** Extract the `url` field from the response - this is what you'll use in the message.
 
    **Note for Voice Messages:**
-   - Voice messages should be recorded in **M4A format** (MP4/AAC codec)
-   - The file should have `.m4a` extension
-   - MIME type should be `audio/mp4` or `audio/m4a`
+   - Voice messages should be recorded in **Opus/WebM format** (most compatible)
+   - The file should have `.webm` extension (or `.ogg` for Firefox)
+   - MIME type should be `audio/webm` or `audio/ogg`
+   - Opus codec provides excellent quality and universal compatibility
 
 #### For Other Files (Video, Documents):
 1. **Upload to Firebase Storage**
@@ -205,10 +206,11 @@ const messageResponse = await fetch(`/api/doctor/conversations/${conversationId}
    - Do NOT include the URL in the message `body` field - only use `attachment_url`
 
 2. **Voice Message Format**:
-   - Voice messages **must** be recorded in **M4A format** (MP4 container with AAC codec)
-   - File extension should be `.m4a`
-   - MIME type should be `audio/mp4` or `audio/m4a`
-   - If the browser/device doesn't support M4A recording, show an error to the user
+   - Voice messages **should** be recorded in **Opus/WebM format** for best compatibility
+   - File extension should be `.webm` (or `.ogg` for Firefox)
+   - MIME type should be `audio/webm` or `audio/ogg`
+   - Opus codec is supported by Chrome, Firefox, Edge, and most mobile players
+   - Alternative: `.m4a` (MP4/AAC) is also supported but may have compatibility issues
 
 3. **File Type Detection**:
    - Determine `attachment_type` based on file MIME type or extension:
@@ -249,7 +251,7 @@ curl -X POST http://your-domain.com/api/upload \
 To test the upload endpoint with a voice message:
 ```bash
 curl -X POST http://your-domain.com/api/upload \
-  -F "file=@/path/to/voice.m4a"
+  -F "file=@/path/to/voice.webm"
 ```
 
 To test sending a message with image:
@@ -271,43 +273,54 @@ curl -X POST http://your-domain.com/api/doctor/conversations/1/messages \
   -H "Content-Type: application/json" \
   -d '{
     "body": null,
-    "attachment_url": "http://your-domain.com/storage/uploads/1234567890_abc123_voice.m4a",
+    "attachment_url": "http://your-domain.com/storage/uploads/1234567890_abc123_voice.webm",
     "attachment_type": "voice"
   }'
 ```
 
 ## Troubleshooting Audio Playback Issues
 
-If M4A files uploaded from web cannot be played in Flutter app:
+If audio files uploaded from web cannot be played in Flutter app:
 
 1. **Check Content-Type Headers:**
    ```bash
-   curl -I http://your-domain.com/storage/uploads/file.m4a
+   curl -I http://your-domain.com/storage/uploads/file.webm
    ```
-   Should return `Content-Type: audio/mp4`
+   Should return `Content-Type: audio/webm` (or `audio/ogg` for OGG files)
 
-2. **Verify File Format:**
-   Use `ffprobe` to check if files are fragmented:
-   ```bash
-   ffprobe -v error -show_format -show_streams file.m4a
-   ```
-   Look for `fragmented: yes` - fragmented files might not play on all devices
-
-3. **Flutter Player Configuration:**
+2. **Flutter Player Configuration:**
    Ensure your audio player supports:
+   - Opus codec (most modern players do)
+   - WebM container format
    - Range requests (for streaming)
-   - MP4/AAC codec
-   - Progressive download
    
-   Example with `just_audio`:
+   Example with `just_audio` (supports Opus/WebM):
    ```dart
    final player = AudioPlayer();
    await player.setUrl(url); // URL from attachment_url
    await player.play();
    ```
+   
+   Example with `audioplayers`:
+   ```dart
+   final player = AudioPlayer();
+   await player.play(UrlSource(url));
+   ```
 
-4. **Compare Web vs Mobile Files:**
-   Check encoding differences between web-recorded and mobile-recorded files using `ffprobe`
+3. **Verify File Format:**
+   Use `ffprobe` to check file format:
+   ```bash
+   ffprobe -v error -show_format -show_streams file.webm
+   ```
+   Should show codec as `opus` and format as `matroska,webm`
 
-5. **See `AUDIO_COMPATIBILITY_FIX.md`** for detailed troubleshooting guide
+4. **Opus/WebM Compatibility:**
+   - Opus/WebM is supported by Chrome, Firefox, Edge browsers
+   - Most Flutter audio players support Opus codec
+   - Better compatibility than M4A/AAC for cross-platform playback
+
+5. **If Issues Persist:**
+   - Check if your Flutter audio player package supports Opus/WebM
+   - Consider using `just_audio` package which has excellent Opus support
+   - Verify server is sending correct Content-Type headers
 
