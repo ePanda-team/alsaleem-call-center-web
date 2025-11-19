@@ -8,6 +8,7 @@ use App\Models\Conversation;
 use App\Models\Slider;
 use App\Models\Message;
 use App\Models\LabTest;
+use App\Http\Controllers\FileUploadController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Route as HttpRoute;
@@ -210,5 +211,8 @@ Route::get('lab-tests', function () {
     $tests = LabTest::orderBy('name')->get(['id','name','description']);
     return response()->json($tests);
 });
+
+// File upload endpoint
+Route::post('upload', [FileUploadController::class, 'upload'])->middleware('upload.limits');
 
 

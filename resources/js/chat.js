@@ -24,6 +24,29 @@ async function uploadAttachment(storage, conversationId, file) {
     return await getDownloadURL(ref);
 }
 
+async function uploadImageToServer(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+    
+    const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': csrfToken || '',
+        },
+        body: formData,
+    });
+    
+    if (!response.ok) {
+        const error = await response.json().catch(() => ({ message: 'Upload failed' }));
+        throw new Error(error.message || 'Failed to upload image');
+    }
+    
+    const data = await response.json();
+    return data.url;
+}
+
 function detectAttachmentType(file) {
     if (!file) return null;
     const type = file.type;
@@ -163,113 +186,38 @@ export function mountChat(el) {
         recTimerEl.textContent = `${mm}:${ss}`;
     }
 
-    async function convertToMp3(audioBlob) {
-        try {
-            // Create audio context
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Convert blob to array buffer
-            const arrayBuffer = await audioBlob.arrayBuffer();
-            
-            // Decode audio data
-            const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-            
-            // Convert to WAV format first (simpler conversion)
-            const wavBlob = audioBufferToWav(audioBuffer);
-            
-            // For now, we'll return the WAV as MP3 (browsers will handle it)
-            // In a production environment, you'd want to use a proper MP3 encoder like lamejs
-            return new Blob([wavBlob], { type: 'audio/mp3' });
-        } catch (error) {
-            console.error('Error converting to MP3:', error);
-            // Fallback: return original blob with MP3 mime type
-            return new Blob([audioBlob], { type: 'audio/mp3' });
-        }
-    }
-
-    function audioBufferToWav(buffer) {
-        const length = buffer.length;
-        const sampleRate = buffer.sampleRate;
-        const numberOfChannels = buffer.numberOfChannels;
-        const bytesPerSample = 2;
-        const blockAlign = numberOfChannels * bytesPerSample;
-        const byteRate = sampleRate * blockAlign;
-        const dataSize = length * blockAlign;
-        const bufferSize = 44 + dataSize;
-        
-        const arrayBuffer = new ArrayBuffer(bufferSize);
-        const view = new DataView(arrayBuffer);
-        
-        // WAV header
-        const writeString = (offset, string) => {
-            for (let i = 0; i < string.length; i++) {
-                view.setUint8(offset + i, string.charCodeAt(i));
-            }
-        };
-        
-        writeString(0, 'RIFF');
-        view.setUint32(4, bufferSize - 8, true);
-        writeString(8, 'WAVE');
-        writeString(12, 'fmt ');
-        view.setUint32(16, 16, true);
-        view.setUint16(20, 1, true);
-        view.setUint16(22, numberOfChannels, true);
-        view.setUint32(24, sampleRate, true);
-        view.setUint32(28, byteRate, true);
-        view.setUint16(32, blockAlign, true);
-        view.setUint16(34, 16, true);
-        writeString(36, 'data');
-        view.setUint32(40, dataSize, true);
-        
-        // Convert audio data
-        let offset = 44;
-        for (let i = 0; i < length; i++) {
-            for (let channel = 0; channel < numberOfChannels; channel++) {
-                const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
-                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-                offset += 2;
-            }
-        }
-        
-        return arrayBuffer;
-    }
-
     async function startRecording() {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             recordedChunks = [];
-            // Prioritize MP3-compatible formats, fallback to others
-            const typeOptions = [
-                'audio/mp4;codecs=mp4a',  // MP4 with AAC codec (MP3-compatible)
-                'audio/mp4',
-                'audio/webm;codecs=opus',
-                'audio/webm',
-                'audio/ogg;codecs=opus',
-                'audio/ogg'
+            // Only use M4A-compatible formats (MP4/AAC)
+            const m4aFormats = [
+                'audio/mp4;codecs=mp4a',  // MP4 with AAC codec (M4A format)
+                'audio/mp4'               // MP4 container (M4A compatible)
             ];
             let chosen = '';
-            for (const t of typeOptions) {
-                if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) { chosen = t; break; }
+            for (const t of m4aFormats) {
+                if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) {
+                    chosen = t;
+                    break;
+                }
             }
-            mediaRecorder = new MediaRecorder(stream, chosen ? { mimeType: chosen } : undefined);
+            
+            // If M4A format is not supported, show error
+            if (!chosen) {
+                stream.getTracks().forEach(t => t.stop());
+                alert('M4A audio recording is not supported in this browser. Please use a modern browser that supports MP4/AAC recording.');
+                return;
+            }
+            
+            mediaRecorder = new MediaRecorder(stream, { mimeType: chosen });
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data && e.data.size > 0) recordedChunks.push(e.data);
             };
-            mediaRecorder.onstop = async () => {
-                const fallbackType = chosen || 'audio/webm';
-                const blob = new Blob(recordedChunks, { type: fallbackType });
-                
-                // Convert to MP3 format
-                let mp3Blob;
-                if (fallbackType.includes('mp4')) {
-                    // If it's already MP4/AAC, we can rename it as MP3
-                    mp3Blob = new Blob([blob], { type: 'audio/mp3' });
-                } else {
-                    // For other formats, we'll convert using Web Audio API
-                    mp3Blob = await convertToMp3(blob);
-                }
-                
-                selectedFile = new File([mp3Blob], `voice-${Date.now()}.mp3`, { type: 'audio/mp3' });
+            mediaRecorder.onstop = () => {
+                // Recorded directly in M4A format, no conversion needed
+                const m4aBlob = new Blob(recordedChunks, { type: 'audio/mp4' });
+                selectedFile = new File([m4aBlob], `voice-${Date.now()}.m4a`, { type: 'audio/mp4' });
                 renderPreview(selectedFile);
                 // stop tracks
                 stream.getTracks().forEach(t => t.stop());
@@ -390,14 +338,27 @@ export function mountChat(el) {
         if (!body && !file) return;
         let attachmentUrl = null;
         let attachmentType = null;
+        let messageBody = body;
         setSending(true);
         try {
             if (file) {
-                attachmentUrl = await uploadAttachment(storage, conversationId, file);
-                attachmentType = detectAttachmentType(file);
+                const fileType = detectAttachmentType(file);
+                
+                // Upload images to Laravel endpoint, others to Firebase Storage
+                if (fileType === 'image') {
+                    attachmentUrl = await uploadImageToServer(file);
+                    attachmentType = 'image';
+                    // Include the URL in the message body
+                    if (!messageBody) {
+                        messageBody = attachmentUrl;
+                    }
+                } else {
+                    attachmentUrl = await uploadAttachment(storage, conversationId, file);
+                    attachmentType = fileType;
+                }
             }
             await addDoc(messagesCol, {
-                body: body || null,
+                body: messageBody || null,
                 attachmentUrl,
                 attachmentType,
                 senderType: 'agent',
@@ -410,7 +371,7 @@ export function mountChat(el) {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                     },
-                    body: JSON.stringify({ body, sender_type: 'agent' })
+                    body: JSON.stringify({ body: messageBody, sender_type: 'agent' })
                 });
             } catch (e) {}
             textInput.value = '';
