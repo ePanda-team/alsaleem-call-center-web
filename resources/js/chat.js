@@ -24,7 +24,7 @@ async function uploadAttachment(storage, conversationId, file) {
     return await getDownloadURL(ref);
 }
 
-async function uploadImageToServer(file) {
+async function uploadFileToServer(file) {
     const formData = new FormData();
     formData.append('file', file);
     
@@ -40,7 +40,7 @@ async function uploadImageToServer(file) {
     
     if (!response.ok) {
         const error = await response.json().catch(() => ({ message: 'Upload failed' }));
-        throw new Error(error.message || 'Failed to upload image');
+        throw new Error(error.message || 'Failed to upload file');
     }
     
     const data = await response.json();
@@ -210,14 +210,30 @@ export function mountChat(el) {
                 return;
             }
             
-            mediaRecorder = new MediaRecorder(stream, { mimeType: chosen });
+            // Use timeslice to ensure proper chunk collection and finalization
+            mediaRecorder = new MediaRecorder(stream, { 
+                mimeType: chosen,
+                audioBitsPerSecond: 128000 // Set bitrate for consistent encoding
+            });
             mediaRecorder.ondataavailable = (e) => {
-                if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+                if (e.data && e.data.size > 0) {
+                    recordedChunks.push(e.data);
+                }
             };
-            mediaRecorder.onstop = () => {
-                // Recorded directly in M4A format, no conversion needed
+            mediaRecorder.onstop = async () => {
+                // Ensure all chunks are collected and properly combined
+                // Wait a bit to ensure all data is available
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Create blob with explicit MIME type
                 const m4aBlob = new Blob(recordedChunks, { type: 'audio/mp4' });
-                selectedFile = new File([m4aBlob], `voice-${Date.now()}.m4a`, { type: 'audio/mp4' });
+                
+                // Ensure the file has proper extension and MIME type
+                selectedFile = new File([m4aBlob], `voice-${Date.now()}.m4a`, { 
+                    type: 'audio/mp4',
+                    lastModified: Date.now()
+                });
+                
                 renderPreview(selectedFile);
                 // stop tracks
                 stream.getTracks().forEach(t => t.stop());
@@ -344,14 +360,11 @@ export function mountChat(el) {
             if (file) {
                 const fileType = detectAttachmentType(file);
                 
-                // Upload images to Laravel endpoint, others to Firebase Storage
-                if (fileType === 'image') {
-                    attachmentUrl = await uploadImageToServer(file);
-                    attachmentType = 'image';
-                    // Include the URL in the message body
-                    if (!messageBody) {
-                        messageBody = attachmentUrl;
-                    }
+                // Upload images and voice messages to Laravel endpoint, others to Firebase Storage
+                if (fileType === 'image' || fileType === 'voice') {
+                    attachmentUrl = await uploadFileToServer(file);
+                    attachmentType = fileType;
+                    // Don't include URL in body, only in attachmentUrl
                 } else {
                     attachmentUrl = await uploadAttachment(storage, conversationId, file);
                     attachmentType = fileType;
