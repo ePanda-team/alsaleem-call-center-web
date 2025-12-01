@@ -30,7 +30,8 @@ class DoctorController extends Controller
     public function create()
     {
         $specialties = Doctor::getSpecialties();
-        return view('admin.doctors.create', compact('specialties'));
+        $experienceLevels = config('doctor.experience_levels');
+        return view('admin.doctors.create', compact('specialties', 'experienceLevels'));
     }
 
     public function store(Request $request)
@@ -39,7 +40,7 @@ class DoctorController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:255', 'unique:doctors,username'],
             'speciality' => ['nullable', 'string', 'max:255'],
-            'experience_level' => ['required', 'in:junior,senior'],
+            'experience_level' => ['required', 'in:specialist,doctor,Consultant'],
             'phone' => ['nullable', 'string', 'max:255'],
             'password' => ['required', 'string', 'min:6'],
         ]);
@@ -51,7 +52,8 @@ class DoctorController extends Controller
     public function edit(Doctor $doctor)
     {
         $specialties = Doctor::getSpecialties();
-        return view('admin.doctors.edit', compact('doctor', 'specialties'));
+        $experienceLevels = config('doctor.experience_levels');
+        return view('admin.doctors.edit', compact('doctor', 'specialties', 'experienceLevels'));
     }
 
     public function update(Request $request, Doctor $doctor)
@@ -60,7 +62,7 @@ class DoctorController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'username' => ['required', 'string', 'max:255', 'unique:doctors,username,' . $doctor->id],
             'speciality' => ['nullable', 'string', 'max:255'],
-            'experience_level' => ['required', 'in:junior,senior'],
+            'experience_level' => ['required', 'in:specialist,doctor,Consultant'],
             'phone' => ['nullable', 'string', 'max:255'],
             'password' => ['nullable', 'string', 'min:6'],
         ]);

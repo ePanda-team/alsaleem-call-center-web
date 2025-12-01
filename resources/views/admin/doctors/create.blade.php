@@ -24,9 +24,11 @@
       </div>
       <div>
         <label class="block text-sm mb-1">{{ __('messages.experience_level') }}</label>
-        <select name="experience_level" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#FE0003]">
-            <option value="junior">junior</option>
-            <option value="senior">senior</option>
+        <select name="experience_level" class="border rounded px-3 py-2 w-full focus:outline-none focus:ring-2 focus:ring-[#FE0003]" required>
+            <option value="">{{ __('messages.select_experience_level') }}</option>
+            @foreach($experienceLevels as $key => $label)
+                <option value="{{ $key }}" {{ old('experience_level') === $key ? 'selected' : '' }}>{{ $label }}</option>
+            @endforeach
         </select>
       </div>
       <div>

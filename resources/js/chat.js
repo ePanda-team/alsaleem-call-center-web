@@ -202,6 +202,7 @@ export function mountChat(el) {
             for (const t of opusFormats) {
                 if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(t)) {
                     chosen = t;
+                    console.log('Selected audio format:', chosen);
                     break;
                 }
             }
@@ -213,11 +214,15 @@ export function mountChat(el) {
                 return;
             }
             
+            // Explicitly prevent M4A/MP4 fallback - only use Opus/WebM
             // Use timeslice to ensure proper chunk collection and finalization
             mediaRecorder = new MediaRecorder(stream, { 
                 mimeType: chosen,
                 audioBitsPerSecond: 128000 // Set bitrate for consistent encoding
             });
+            
+            // Verify the actual mimeType being used
+            console.log('MediaRecorder mimeType:', mediaRecorder.mimeType);
             mediaRecorder.ondataavailable = (e) => {
                 if (e.data && e.data.size > 0) {
                     recordedChunks.push(e.data);
@@ -232,6 +237,21 @@ export function mountChat(el) {
                 const extension = chosen.includes('webm') ? 'webm' : 'ogg';
                 const mimeType = chosen.includes('webm') ? 'audio/webm' : 'audio/ogg';
                 
+                // Verify we're not accidentally using M4A
+                if (chosen.includes('mp4') || chosen.includes('m4a')) {
+                    console.error('ERROR: M4A format detected! This should not happen.');
+                    alert('Error: Browser fallback to M4A detected. Please use Chrome, Firefox, or Edge.');
+                    stream.getTracks().forEach(t => t.stop());
+                    return;
+                }
+                
+                console.log('Creating audio file:', {
+                    extension: extension,
+                    mimeType: mimeType,
+                    chunks: recordedChunks.length,
+                    totalSize: recordedChunks.reduce((sum, chunk) => sum + chunk.size, 0)
+                });
+                
                 // Create blob with explicit MIME type
                 const audioBlob = new Blob(recordedChunks, { type: mimeType });
                 
@@ -240,6 +260,8 @@ export function mountChat(el) {
                     type: mimeType,
                     lastModified: Date.now()
                 });
+                
+                console.log('Created file:', selectedFile.name, selectedFile.type);
                 
                 renderPreview(selectedFile);
                 // stop tracks
