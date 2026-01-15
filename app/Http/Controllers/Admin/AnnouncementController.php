@@ -18,7 +18,8 @@ class AnnouncementController extends Controller
 
     public function create()
     {
-        return view('admin.announcements.create');
+        $experienceLevels = config('doctor.experience_levels');
+        return view('admin.announcements.create', compact('experienceLevels'));
     }
 
     public function store(Request $request)
@@ -69,7 +70,7 @@ class AnnouncementController extends Controller
             'target_specialties' => ['nullable', 'array'],
             'target_specialties.*' => ['string', 'max:255'],
             'target_experience_levels' => ['nullable', 'array'],
-            'target_experience_levels.*' => ['string', 'in:junior,senior'],
+            'target_experience_levels.*' => ['string', 'in:specialist,doctor,Consultant'],
             'media' => ['nullable', 'array'],
             'media.*' => ['file', 'mimes:jpg,jpeg,png,gif,mp4,avi,mov,webm,ogg,mp3,wav,m4a,aac,pdf,doc,docx,txt', new MaxFileSize()],
         ]);
@@ -105,7 +106,8 @@ class AnnouncementController extends Controller
 
     public function edit(Announcement $announcement)
     {
-        return view('admin.announcements.edit', compact('announcement'));
+        $experienceLevels = config('doctor.experience_levels');
+        return view('admin.announcements.edit', compact('announcement', 'experienceLevels'));
     }
 
     public function update(Request $request, Announcement $announcement)
@@ -116,7 +118,7 @@ class AnnouncementController extends Controller
             'target_specialties' => ['nullable', 'array'],
             'target_specialties.*' => ['string', 'max:255'],
             'target_experience_levels' => ['nullable', 'array'],
-            'target_experience_levels.*' => ['string', 'in:junior,senior'],
+            'target_experience_levels.*' => ['string', 'in:specialist,doctor,Consultant'],
             'media' => ['nullable', 'array'],
             'media.*' => ['file', 'mimes:jpg,jpeg,png,gif,mp4,avi,mov,webm,ogg,mp3,wav,m4a,aac,pdf,doc,docx,txt', new MaxFileSize()],
         ]);

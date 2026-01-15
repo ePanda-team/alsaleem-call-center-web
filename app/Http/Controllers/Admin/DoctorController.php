@@ -24,7 +24,8 @@ class DoctorController extends Controller
             $query->where('experience_level', $request->string('experience'));
         }
         $doctors = $query->orderByDesc('id')->paginate(20)->appends($request->query());
-        return view('admin.doctors.index', compact('doctors'));
+        $experienceLevels = config('doctor.experience_levels');
+        return view('admin.doctors.index', compact('doctors', 'experienceLevels'));
     }
 
     public function create()

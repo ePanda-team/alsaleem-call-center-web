@@ -32,14 +32,12 @@
       <div>
         <label class="block text-sm mb-1">{{ __('messages.target_experience_levels') }}</label>
         <div class="space-y-2">
+            @foreach($experienceLevels as $key => $label)
             <label class="flex items-center">
-                <input type="checkbox" name="target_experience_levels[]" value="junior" class="mr-2" {{ in_array('junior', old('target_experience_levels', $announcement->target_experience_levels ?? [])) ? 'checked' : '' }} />
-                {{ __('messages.junior') }}
+                <input type="checkbox" name="target_experience_levels[]" value="{{ $key }}" class="mr-2" {{ in_array($key, old('target_experience_levels', $announcement->target_experience_levels ?? [])) ? 'checked' : '' }} />
+                {{ $label }}
             </label>
-            <label class="flex items-center">
-                <input type="checkbox" name="target_experience_levels[]" value="senior" class="mr-2" {{ in_array('senior', old('target_experience_levels', $announcement->target_experience_levels ?? [])) ? 'checked' : '' }} />
-                {{ __('messages.senior') }}
-            </label>
+            @endforeach
         </div>
         <p class="text-xs text-gray-500 mt-1">{{ __('messages.target_experience_help') }}</p>
       </div>

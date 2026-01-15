@@ -9,8 +9,8 @@
     <input type="text" name="q" value="{{ request('q') }}" placeholder="{{ __('messages.search_name_username_speciality') }}" class="border p-2 rounded" />
     <select name="experience" class="border p-2 rounded">
       <option value="">{{ __('messages.all_levels') }}</option>
-      @foreach(['junior','senior'] as $lvl)
-        <option value="{{ $lvl }}" @selected(request('experience')===$lvl)>{{ ucfirst($lvl) }}</option>
+      @foreach($experienceLevels as $key => $label)
+        <option value="{{ $key }}" @selected(request('experience')===$key)>{{ $label }}</option>
       @endforeach
     </select>
     <div class="flex gap-2">
@@ -37,7 +37,12 @@
             <td class="px-4 py-2">{{ $doctor->name }}</td>
             <td class="px-4 py-2">{{ $doctor->username }}</td>
             <td class="px-4 py-2">{{ $doctor->speciality }}</td>
-            <td class="px-4 py-2">{{ ucfirst($doctor->experience_level) }}</td>
+            <td class="px-4 py-2">
+              @php
+                $levelLabel = isset($experienceLevels[$doctor->experience_level]) ? $experienceLevels[$doctor->experience_level] : ucfirst($doctor->experience_level);
+              @endphp
+              {{ $levelLabel }}
+            </td>
             <td class="px-4 py-2">
               <a class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded mr-2" href="{{ route('admin.doctors.edit', $doctor) }}">{{ __('messages.edit') }}</a>
               <form action="{{ route('admin.doctors.destroy', $doctor) }}" method="post" class="inline">
