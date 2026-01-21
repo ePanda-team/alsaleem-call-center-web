@@ -51,7 +51,7 @@ Route::get('/test-fcm', function () {
     ]);
 });
 
-Route::middleware('setlocale')->get('/', function () {
+Route::middleware(['setlocale', 'auth'])->get('/', function () {
     $sliders = Slider::orderBy('position')->take(3)->get();
     $doctorCount = Doctor::count();
     $resultCount = TestResult::count();
