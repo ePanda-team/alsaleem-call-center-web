@@ -78,6 +78,7 @@ return [
     'add_test_result' => 'إضافة نتيجة فحص',
     'edit_test_result' => 'تعديل نتيجة الفحص',
     'patient_name' => 'اسم المريض',
+    'patient_age' => 'عمر المريض',
     'lab_branch' => 'فرع المختبر',
     'select_lab_branch' => 'اختر فرع المختبر',
     'select_doctor' => 'اختر الطبيب',

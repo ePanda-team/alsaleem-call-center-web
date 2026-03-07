@@ -78,6 +78,7 @@ return [
     'add_test_result' => 'Add Test Result',
     'edit_test_result' => 'Edit Test Result',
     'patient_name' => 'Patient Name',
+    'patient_age' => 'Patient Age',
     'lab_branch' => 'Lab Branch',
     'select_lab_branch' => 'Select Lab Branch',
     'select_doctor' => 'Select Doctor',

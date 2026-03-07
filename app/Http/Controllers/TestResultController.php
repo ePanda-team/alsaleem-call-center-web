@@ -39,6 +39,7 @@ class TestResultController extends Controller
     {
         $data = $request->validate([
             'patient_name' => ['required', 'string', 'max:255'],
+            'patient_age' => ['nullable', 'integer', 'min:0', 'max:150'],
             'hospital' => ['nullable', 'string', 'max:255'],
             'lab_branch' => ['required', 'string', 'max:255'],
             'doctor_id' => ['required', 'exists:doctors,id'],
@@ -53,6 +54,7 @@ class TestResultController extends Controller
         $path = 'results/' . $filename;
         $testResult = TestResult::create([
             'patient_name' => $data['patient_name'],
+            'patient_age' => $data['patient_age'] ?? null,
             'hospital' => $data['hospital'],
             'lab_branch' => $data['lab_branch'],
             'doctor_id' => $data['doctor_id'],
@@ -80,6 +82,7 @@ class TestResultController extends Controller
     {
         $data = $request->validate([
             'patient_name' => ['required', 'string', 'max:255'],
+            'patient_age' => ['nullable', 'integer', 'min:0', 'max:150'],
             'hospital' => ['nullable', 'string', 'max:255'],
             'lab_branch' => ['required', 'string', 'max:255'],
             'doctor_id' => ['required', 'exists:doctors,id'],
@@ -103,6 +106,7 @@ class TestResultController extends Controller
             $result->pdf_path = $path;
         }
         $result->patient_name = $data['patient_name'];
+        $result->patient_age = $data['patient_age'] ?? null;
         $result->hospital = $data['hospital'];
         $result->lab_branch = $data['lab_branch'];
         $result->doctor_id = $data['doctor_id'];
@@ -112,13 +116,6 @@ class TestResultController extends Controller
 
     public function destroy(TestResult $result)
     {
-        // Delete associated PDF file
-        if ($result->pdf_path) {
-            $filePath = public_path('storage/' . $result->pdf_path);
-            if (file_exists($filePath)) {
-                unlink($filePath);
-            }
-        }
         $result->delete();
         return back()->with('status', 'Result deleted');
     }

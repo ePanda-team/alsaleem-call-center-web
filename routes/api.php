@@ -1,216 +1,40 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Models\Announcement;
-use App\Models\TestResult;
-use App\Models\Doctor;
-use App\Models\Conversation;
-use App\Models\Slider;
-use App\Models\Message;
-use App\Models\LabTest;
+use App\Http\Controllers\Api\DoctorAuthController;
+use App\Http\Controllers\Api\DoctorController;
+use App\Http\Controllers\Api\ActivityController;
+use App\Http\Controllers\Api\PublicController;
 use App\Http\Controllers\FileUploadController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Route as HttpRoute;
 
-Route::post('doctor/login', function (Request $request) {
-    $data = $request->validate([
-        'username' => ['required', 'string'],
-        'password' => ['required', 'string'],
-    ]);
-    $doctor = Doctor::where('username', $data['username'])->first();
-    if (!$doctor || !\Illuminate\Support\Facades\Hash::check($data['password'], $doctor->password)) {
-        return response()->json(['message' => 'Invalid credentials'], 422);
-    }
-    $doctor->api_token = Str::random(60);
-    $doctor->save();
-    return response()->json(['token' => $doctor->api_token]);
-});
+Route::post('doctor/login', [DoctorAuthController::class, 'login']);
 
 Route::middleware('doctor.token')->group(function () {
-    Route::get('doctor/me', function (Request $request) {
-        $doctor = $request->attributes->get('doctor');
-        return response()->json($doctor);
-    });
-
-    Route::post('doctor/fcm-token', function (Request $request) {
-        $doctor = $request->attributes->get('doctor');
-        
-        $data = $request->validate([
-            'fcm_token' => ['required', 'string', 'max:1000'],
-        ]);
-        
-        $doctor->fcm_token = $data['fcm_token'];
-        $doctor->save();
-        
-        return response()->json([
-            'success' => true,
-            'message' => 'FCM token updated successfully'
-        ]);
-    });
-
-    Route::get('doctor/conversation', function (Request $request) {
-        $doctor = $request->attributes->get('doctor');
-        $conversation = Conversation::firstOrCreate(['doctor_id' => $doctor->id]);
-        return response()->json(['conversation_id' => $conversation->id]);
-    });
-
-    Route::get('doctor/results', function (Request $request) {
-        $doctor = $request->attributes->get('doctor');
-        $results = TestResult::where('doctor_id', $doctor->id)->orderByDesc('id')->paginate(20);
-        $results->getCollection()->transform(function ($result) {
-            return [
-                'id' => $result->id,
-                'patient_name' => $result->patient_name,
-                'lab_branch' => $result->lab_branch,
-                'pdf_path' => asset('storage/'.$result->pdf_path),
-                'doctor_comment' => $result->doctor_comment,
-            ];
-        });
-        $results->appends($request->query());
-        return response()->json($results);
-    });
-
-    Route::get('doctor/announcements', function (Request $request) {
-        $doctor = $request->attributes->get('doctor');
-        
-        // Filter announcements based on targeting
-        $query = Announcement::query();
-        
-        // Apply specialty targeting
-        $query->where(function ($q) use ($doctor) {
-            $q->whereNull('target_specialties')
-              ->orWhereJsonContains('target_specialties', $doctor->speciality);
-        });
-        
-        // Apply experience level targeting
-        $query->where(function ($q) use ($doctor) {
-            $q->whereNull('target_experience_levels')
-              ->orWhereJsonContains('target_experience_levels', $doctor->experience_level);
-        });
-        
-        $items = $query->orderByDesc('id')->paginate(20);
-        
-        // Track views for all announcements in this request and replace [dr] placeholder
-        foreach ($items->items() as $announcement) {
-            \App\Models\AnnouncementView::updateOrCreate(
-                [
-                    'announcement_id' => $announcement->id,
-                    'doctor_id' => $doctor->id,
-                ],
-                [
-                    'viewed_at' => now(),
-                ]
-            );
-            
-            // Replace [dr] placeholder with doctor's name
-            $announcement->title = str_replace('[dr]', $doctor->name, $announcement->title);
-            $announcement->body = str_replace('[dr]', $doctor->name, $announcement->body);
-        }
-        
-        return response()->json($items);
-    });
-
-    Route::post('doctor/results/{result}/comment', function (Request $request, TestResult $result) {
-        $doctor = $request->attributes->get('doctor');
-        abort_unless($result->doctor_id === $doctor->id, 403);
-        $data = $request->validate([
-            'doctor_comment' => ['nullable', 'string'],
-        ]);
-        $result->doctor_comment = $data['doctor_comment'] ?? null;
-        $result->save();
-        return response()->json(['ok' => true]);
-    });
-
-    Route::get('doctor/conversations/{conversation}/messages', function (Request $request, Conversation $conversation) {
-        $doctor = $request->attributes->get('doctor');
-        abort_unless($conversation->doctor_id === $doctor->id, 403);
-        $limit = min((int) $request->query('limit', 50), 200);
-        $messages = Message::where('conversation_id', $conversation->id)
-            ->orderByDesc('id')
-            ->limit($limit)
-            ->get()
-            ->reverse()
-            ->values()
-            ->map(function ($m) {
-                return [
-                    'id' => $m->id,
-                    'sender_type' => $m->sender_type,
-                    'body' => $m->body,
-                    'attachment_url' => $m->attachment_path ? asset('storage/'.$m->attachment_path) : null,
-                    'attachment_type' => $m->attachment_type,
-                    'created_at' => $m->created_at?->toIso8601String(),
-                    'read_at' => $m->read_at?->toIso8601String(),
-                ];
-            });
-        return response()->json(['messages' => $messages]);
-    });
-
-    Route::post('doctor/conversations/{conversation}/messages', function (Request $request, Conversation $conversation) {
-        $doctor = $request->attributes->get('doctor');
-        abort_unless($conversation->doctor_id === $doctor->id, 403);
-        $data = $request->validate([
-            'body' => ['nullable', 'string'],
-            'attachment_url' => ['nullable', 'url'],
-            'attachment_type' => ['nullable', 'in:voice,document,image,video'],
-        ]);
-        $message = new Message();
-        $message->conversation_id = $conversation->id;
-        $message->sender_type = 'doctor';
-        $message->sender_id = $doctor->id;
-        $message->body = $data['body'] ?? null;
-        // If mobile uploads elsewhere and passes a URL, we store it in attachment_path as-is
-        if (!empty($data['attachment_url'])) {
-            $message->attachment_path = $data['attachment_url'];
-            $message->attachment_type = $data['attachment_type'] ?? null;
-        }
-        $message->save();
-
-        $conversation->last_message_at = now();
-        $conversation->last_message_preview = $message->body ? mb_substr($message->body, 0, 200) : 'Attachment';
-        $conversation->unread_doctor_count = ($conversation->unread_doctor_count ?? 0) + 1;
-        $conversation->save();
-
-        return response()->json(['id' => $message->id], 201);
-    });
-    // Update conversation activity (called by web when agent sends a message)
+    Route::get('doctor/me', [DoctorController::class, 'me']);
+    Route::post('doctor/fcm-token', [DoctorController::class, 'updateFcmToken']);
+    Route::get('doctor/conversation', [DoctorController::class, 'conversation']);
+    Route::get('doctor/results', [DoctorController::class, 'results']);
+    Route::get('doctor/announcements', [DoctorController::class, 'announcements']);
+    Route::put('doctor/me', [DoctorController::class, 'updateProfile']);
+    Route::delete('doctor/results/{result}', [DoctorController::class, 'deleteResult']);
+    Route::post('doctor/results/{result}/comment', [DoctorController::class, 'commentResult']);
+    Route::get('doctor/conversations/{conversation}/messages', [DoctorController::class, 'messages']);
+    Route::post('doctor/conversations/{conversation}/messages', [DoctorController::class, 'sendMessage']);
+    Route::post('doctor/conversations/{conversation}/messages/read', [DoctorController::class, 'markMessagesRead']);
 });
 
 // Staff-authenticated activity update
-HttpRoute::middleware(['web', 'auth'])->post('/activity/conversation/{conversation}', function (\App\Models\Conversation $conversation, Request $request) {
-    $data = $request->validate([
-        'body' => ['nullable', 'string'],
-        'sender_type' => ['required', 'in:agent,doctor'],
-    ]);
-    $conversation->last_message_at = now();
-    $conversation->last_message_preview = $data['body'] ? mb_substr($data['body'], 0, 200) : ($data['sender_type'] === 'agent' ? 'Attachment' : 'Attachment');
-    if ($data['sender_type'] === 'doctor') {
-        $conversation->unread_doctor_count = $conversation->unread_doctor_count + 1;
-    }
-    $conversation->save();
-    $notificationService = new \App\Services\NotificationService();
-    $notificationService->sendNewMessageNotification($conversation->doctor, $conversation);
-    return response()->json(['ok' => true]);
-});
+Route::middleware(['web', 'auth'])->post('/activity/conversation/{conversation}', [ActivityController::class, 'updateConversation']);
+Route::middleware(['web', 'auth'])->post('/activity/conversation/{conversation}/messages', [ActivityController::class, 'storeMessage']);
+Route::middleware(['web', 'auth'])->get('/activity/conversation/{conversation}/messages', [ActivityController::class, 'messages']);
+Route::middleware(['web', 'auth'])->put('/activity/conversation/{conversation}/messages/{message}', [ActivityController::class, 'updateMessage']);
+Route::middleware(['web', 'auth'])->delete('/activity/conversation/{conversation}/messages/{message}', [ActivityController::class, 'deleteMessage']);
 
 // Public sliders endpoint for mobile app
-Route::get('sliders', function () {
-    $sliders = Slider::orderBy('position')->limit(3)->get()->map(function ($s) {
-        return [
-            'id' => $s->id,
-            'title' => $s->title,
-            'image_url' => asset('storage/'.$s->image_path),
-            'position' => $s->position,
-        ];
-    });
-    return response()->json($sliders);
-});
+Route::get('sliders', [PublicController::class, 'sliders']);
 
 // Public lab tests endpoint for mobile app
-Route::get('lab-tests', function () {
-    $tests = LabTest::orderBy('name')->get(['id','name','description']);
-    return response()->json($tests);
-});
+Route::get('lab-tests', [PublicController::class, 'labTests']);
 
 // File upload endpoint
 Route::post('upload', [FileUploadController::class, 'upload'])->middleware('upload.limits');

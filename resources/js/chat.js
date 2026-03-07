@@ -1,29 +1,3 @@
-import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, doc, updateDoc, deleteDoc } from 'firebase/firestore';
-import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
-
-function getFirebaseConfig() {
-    return {
-        apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-        storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-        appId: import.meta.env.VITE_FIREBASE_APP_ID,
-    };
-}
-
-function isConfigValid(cfg) {
-    return cfg && cfg.apiKey && cfg.projectId && cfg.storageBucket && cfg.appId;
-}
-
-async function uploadAttachment(storage, conversationId, file) {
-    const key = `conversations/${conversationId}/${Date.now()}-${file.name}`;
-    const ref = storageRef(storage, key);
-    await uploadBytes(ref, file);
-    return await getDownloadURL(ref);
-}
-
 async function uploadFileToServer(file) {
     const formData = new FormData();
     formData.append('file', file);
@@ -78,21 +52,20 @@ function guessMimeForAudio(url) {
 export function mountChat(el) {
     const conversationId = el.getAttribute('data-conversation');
     const title = el.getAttribute('data-title') || 'Chat';
-    const config = getFirebaseConfig();
-    if (!isConfigValid(config)) {
-        el.innerHTML = '<div class="border p-3 bg-yellow-50 rounded">Firebase is not configured. Set VITE_FIREBASE_* in .env.</div>';
+    const currentUserType = el.getAttribute('data-user-type') || '';
+    const currentUserIdRaw = el.getAttribute('data-user-id');
+    const currentUserId = currentUserIdRaw ? Number(currentUserIdRaw) : null;
+    if (!conversationId) {
+        el.innerHTML = '<div class="border p-3 bg-yellow-50 rounded">Missing conversation id.</div>';
         return;
     }
-
-    const app = initializeApp(config);
-    const db = getFirestore(app);
-    const storage = getStorage(app);
 
     el.innerHTML = `
       <div class="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
         <div class="px-4 py-3 border-b bg-gray-50 font-medium">${title}</div>
         <div id="messages" class="h-[60vh] md:h-[70vh] overflow-y-auto px-4 py-3 space-y-2 bg-gradient-to-b from-white to-gray-50"></div>
         <div class="border-t p-3">
+          <div id="replyPreview" class="mb-2 hidden"></div>
           <div id="filePreview" class="mb-2 hidden"></div>
           <div class="flex items-center gap-2">
             <input id="textInput" class="border rounded-lg px-4 py-2 flex-1 focus:outline-none focus:ring-2 focus:ring-[#FE0003]" placeholder="Type a message" />
@@ -117,6 +90,7 @@ export function mountChat(el) {
     const messagesEl = el.querySelector('#messages');
     const textInput = el.querySelector('#textInput');
     const fileInput = el.querySelector('#fileInput');
+    const replyPreview = el.querySelector('#replyPreview');
     const filePreview = el.querySelector('#filePreview');
     const recordBtn = el.querySelector('#recordBtn');
     const recTimerEl = el.querySelector('#recTimer');
@@ -134,6 +108,7 @@ export function mountChat(el) {
     }
 
     let selectedFile = null;
+    let replyToMessage = null;
     let mediaRecorder = null;
     let recordedChunks = [];
     let recStartedAt = null;
@@ -143,6 +118,34 @@ export function mountChat(el) {
         if (!filePreview) return;
         filePreview.innerHTML = '';
         filePreview.classList.add('hidden');
+    }
+
+    function renderReplyPreview() {
+        if (!replyPreview) return;
+        if (!replyToMessage) {
+            replyPreview.innerHTML = '';
+            replyPreview.classList.add('hidden');
+            return;
+        }
+        const sender = replyToMessage.sender_name || replyToMessage.sender_type || 'Unknown';
+        const body = replyToMessage.body || (replyToMessage.attachment_type ? `Attachment (${replyToMessage.attachment_type})` : '');
+        replyPreview.innerHTML = `
+          <div class="flex items-center justify-between gap-2 border rounded bg-gray-50 px-3 py-2">
+            <div class="text-sm">
+              <div class="font-medium text-gray-700">Replying to ${sender}</div>
+              <div class="text-gray-600 truncate max-w-[60vw]">${body}</div>
+            </div>
+            <button type="button" id="clearReply" class="text-sm text-red-600">Cancel</button>
+          </div>
+        `;
+        replyPreview.classList.remove('hidden');
+        const clearBtn = replyPreview.querySelector('#clearReply');
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                replyToMessage = null;
+                renderReplyPreview();
+            });
+        }
     }
 
     function renderPreview(file) {
@@ -306,75 +309,193 @@ export function mountChat(el) {
     }
     // sendBtn already defined above
 
-    const messagesCol = collection(db, 'conversations', String(conversationId), 'messages');
     const scrollToBottom = () => {
         if (!messagesEl) return;
         messagesEl.scrollTop = messagesEl.scrollHeight;
     };
-    const q = query(messagesCol, orderBy('createdAt'));
-    onSnapshot(q, (snapshot) => {
-        messagesEl.innerHTML = '';
-        snapshot.forEach((doc) => {
-            const m = doc.data();
-            const isMine = (m.senderType === 'agent');
-            const wrap = document.createElement('div');
-            wrap.className = `flex ${isMine ? 'justify-end' : 'justify-start'}`;
-            const bubble = document.createElement('div');
-            bubble.className = `max-w-[75%] rounded-2xl px-4 py-2 shadow ${isMine ? 'bg-blue-600 text-white rounded-br-md' : 'bg-gray-100 text-gray-900 rounded-bl-md'}`;
-            let html = '';
-            if (m.body) {
-                html += `<div class="whitespace-pre-wrap">${m.body}</div>`;
-                if (m.edited) {
-                    html += `<div class="text-xs opacity-70 mt-1">(edited)</div>`;
-                }
+
+    const messagesById = new Map();
+    let lastMessageId = 0;
+
+    const isNearBottom = () => {
+        if (!messagesEl) return true;
+        const threshold = 120;
+        return messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < threshold;
+    };
+
+    const renderMessage = (m) => {
+        messagesById.set(m.id, m);
+        const isMine = (m.sender_type === currentUserType) && (currentUserId === null || m.sender_id === currentUserId);
+        const wrap = document.createElement('div');
+        wrap.className = `flex ${isMine ? 'justify-end' : 'justify-start'}`;
+        wrap.dataset.messageId = String(m.id);
+        const bubble = document.createElement('div');
+        bubble.className = `max-w-[75%] rounded-2xl px-4 py-2 shadow ${isMine ? 'bg-blue-600 text-white rounded-br-md' : 'bg-gray-100 text-gray-900 rounded-bl-md'}`;
+        let html = '';
+        if (m.reply_to) {
+            const replySender = m.reply_to.sender_name || m.reply_to.sender_type || 'Unknown';
+            const replyBody = m.reply_to.body || (m.reply_to.attachment_type ? `Attachment (${m.reply_to.attachment_type})` : '');
+            html += `
+              <div class="mb-2 px-2 py-1 rounded border text-xs ${isMine ? 'bg-blue-500/40 border-blue-200' : 'bg-white border-gray-200'}">
+                <div class="font-medium">${replySender}</div>
+                <div class="truncate">${replyBody}</div>
+              </div>
+            `;
+        }
+        if (m.body) {
+            html += `<div class="whitespace-pre-wrap">${m.body}</div>`;
+        }
+        // Normalize attachment fields coming from different sources (Firestore, API, legacy)
+        const att = (m.attachment) || {};
+        const url = m.attachmentUrl || m.attachment_url || m.attachmentPath || m.attachment_path || m.url || m.fileUrl || m.file_url || att.url || att.path || null;
+        const aType = m.attachmentType || m.attachment_type || att.type || guessAttachmentTypeFromUrl(url);
+        if (url) {
+            if (aType === 'image') html += `<img src="${url}" class="mt-2 rounded-lg max-w-full" />`;
+            else if (aType === 'video') html += `<video src="${url}" controls preload="metadata" class="mt-2 rounded-lg max-w-full"></video>`;
+            else if (aType === 'voice') {
+                const mime = guessMimeForAudio(url);
+                html += `<audio controls style="height: 40px;width: 500px;" preload="metadata" class="mt-2 w-full" controls>
+                <source src="${url}" type="${mime}">Your browser does not support the audio element.</audio>`;
             }
-            
-            // Add edit/delete buttons for messages sent by current user
-            if (isMine) {
-                html += `<div class="mt-2 flex gap-1 justify-end">
-                    <button onclick="editMessage('${doc.id}', '${m.body?.replace(/'/g, "\\'") || ''}')" class="text-xs px-2 py-1 bg-white bg-opacity-20 rounded hover:bg-opacity-30 transition-colors" title="Edit">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
-                        </svg>
-                    </button>
-                    <button onclick="deleteMessage('${doc.id}')" class="text-xs px-2 py-1 bg-white bg-opacity-20 rounded hover:bg-opacity-30 transition-colors" title="Delete">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
-                        </svg>
-                    </button>
-                </div>`;
-            }
-            // Normalize attachment fields coming from different sources (Firestore, API, legacy)
-            const att = (m.attachment) || {};
-            const url = m.attachmentUrl || m.attachment_url || m.attachmentPath || m.attachment_path || m.url || m.fileUrl || m.file_url || att.url || att.path || null;
-            const aType = m.attachmentType || m.attachment_type || att.type || guessAttachmentTypeFromUrl(url);
-            if (url) {
-                if (aType === 'image') html += `<img src="${url}" class="mt-2 rounded-lg max-w-full" />`;
-                else if (aType === 'video') html += `<video src="${url}" controls preload="metadata" class="mt-2 rounded-lg max-w-full"></video>`;
-                else if (aType === 'voice') {
-                    const mime = guessMimeForAudio(url);
-                    console.log('audio messages');
-                    html += `<audio controls style="height: 40px;width: 500px;" preload="metadata" class="mt-2 w-full" controls>
-                    <source src="${url}" type="${mime}">Your browser does not support the audio element.</audio>`;
-                }
-                else html += `<a class="mt-2 underline block" href="${url}" target="_blank">Attachment</a>`;
-            } else if (aType === 'voice') {
-                // Fallback text if type is known but URL missing
-                html += `<div class="mt-1 italic opacity-80">Voice message (no URL)</div>`;
-            }
-            bubble.innerHTML = html;
-            wrap.appendChild(bubble);
-            messagesEl.appendChild(wrap);
-            // Defer scroll after media loads
-            const media = bubble.querySelector('img,video');
-            if (media) {
-                media.addEventListener('load', () => setTimeout(scrollToBottom, 10), { once: true });
-                media.addEventListener('loadeddata', () => setTimeout(scrollToBottom, 10), { once: true });
-            }
+            else html += `<a class="mt-2 underline block" href="${url}" target="_blank">Attachment</a>`;
+        } else if (aType === 'voice') {
+            // Fallback text if type is known but URL missing
+            html += `<div class="mt-1 italic opacity-80">Voice message (no URL)</div>`;
+        }
+        html += `
+          <div class="mt-2 text-xs opacity-80 flex justify-end gap-2">
+            <button type="button" class="reply-btn underline" data-reply-id="${m.id}">Reply</button>
+            ${isMine ? `<button type="button" class="edit-btn underline" data-message-id="${m.id}">Edit</button>
+            <button type="button" class="delete-btn underline" data-message-id="${m.id}">Delete</button>` : ''}
+          </div>
+        `;
+        bubble.innerHTML = html;
+        wrap.appendChild(bubble);
+        messagesEl.appendChild(wrap);
+        const media = bubble.querySelector('img,video');
+        if (media) {
+            media.addEventListener('load', () => setTimeout(scrollToBottom, 10), { once: true });
+            media.addEventListener('loadeddata', () => setTimeout(scrollToBottom, 10), { once: true });
+        }
+    };
+
+    const wireReplyButtons = () => {
+        messagesEl.querySelectorAll('.reply-btn').forEach((btn) => {
+            if (btn.dataset.wired) return;
+            btn.dataset.wired = '1';
+            btn.addEventListener('click', () => {
+                const id = Number(btn.getAttribute('data-reply-id'));
+                const msg = messagesById.get(id);
+                if (!msg) return;
+                replyToMessage = {
+                    id: msg.id,
+                    sender_type: msg.sender_type,
+                    sender_name: msg.sender_name,
+                    body: msg.body,
+                    attachment_type: msg.attachment_type,
+                };
+                renderReplyPreview();
+            });
         });
-        // Scroll now and once more after layout settles
-        scrollToBottom();
-        setTimeout(scrollToBottom, 50);
+    };
+
+    const wireEditDeleteButtons = () => {
+        messagesEl.querySelectorAll('.edit-btn').forEach((btn) => {
+            if (btn.dataset.wired) return;
+            btn.dataset.wired = '1';
+            btn.addEventListener('click', async () => {
+                const id = Number(btn.getAttribute('data-message-id'));
+                const msg = messagesById.get(id);
+                if (!msg) return;
+                const currentText = msg.body || '';
+                const newText = prompt('Edit message:', currentText);
+                if (newText === null || newText === currentText) return;
+                try {
+                    const response = await fetch(`/api/activity/conversation/${conversationId}/messages/${id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        },
+                        body: JSON.stringify({ body: newText }),
+                    });
+                    if (!response.ok) return;
+                    msg.body = newText;
+                    fetchMessages(true);
+                } catch (e) {}
+            });
+        });
+
+        messagesEl.querySelectorAll('.delete-btn').forEach((btn) => {
+            if (btn.dataset.wired) return;
+            btn.dataset.wired = '1';
+            btn.addEventListener('click', async () => {
+                const id = Number(btn.getAttribute('data-message-id'));
+                if (!confirm('Are you sure you want to delete this message?')) return;
+                try {
+                    const response = await fetch(`/api/activity/conversation/${conversationId}/messages/${id}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                        },
+                    });
+                    if (!response.ok) return;
+                    messagesById.delete(id);
+                    const row = messagesEl.querySelector(`[data-message-id="${id}"]`);
+                    if (row) row.remove();
+                } catch (e) {}
+            });
+        });
+    };
+
+    const renderMessages = (items, options = { reset: false }) => {
+        const shouldStickToBottom = isNearBottom();
+        if (options.reset) {
+            messagesEl.innerHTML = '';
+            messagesById.clear();
+            lastMessageId = 0;
+        }
+        items.forEach((m) => {
+            if (messagesById.has(m.id)) return;
+            renderMessage(m);
+            if (m.id > lastMessageId) lastMessageId = m.id;
+        });
+        wireReplyButtons();
+        wireEditDeleteButtons();
+        if (shouldStickToBottom) {
+            scrollToBottom();
+            setTimeout(scrollToBottom, 50);
+        }
+    };
+
+    let pollingTimer = null;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
+
+    const fetchMessages = async (initial = false) => {
+        try {
+            const url = initial
+                ? `/api/activity/conversation/${conversationId}/messages?limit=200`
+                : `/api/activity/conversation/${conversationId}/messages?since_id=${lastMessageId}&limit=200`;
+            const response = await fetch(url, {
+                headers: {
+                    'Accept': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken || '',
+                },
+            });
+            if (!response.ok) return;
+            const data = await response.json();
+            if (initial) {
+                renderMessages(data.messages || [], { reset: true });
+            } else if ((data.messages || []).length > 0) {
+                renderMessages(data.messages || []);
+            }
+        } catch (e) {}
+    };
+
+    fetchMessages(true);
+    pollingTimer = setInterval(() => fetchMessages(false), 4000);
+    window.addEventListener('beforeunload', () => {
+        if (pollingTimer) clearInterval(pollingTimer);
     });
 
     sendBtn.addEventListener('click', async () => {
@@ -388,24 +509,9 @@ export function mountChat(el) {
         try {
             if (file) {
                 const fileType = detectAttachmentType(file);
-                
-                // Upload images and voice messages to Laravel endpoint, others to Firebase Storage
-                if (fileType === 'image' || fileType === 'voice') {
-                    attachmentUrl = await uploadFileToServer(file);
-                    attachmentType = fileType;
-                    // Don't include URL in body, only in attachmentUrl
-                } else {
-                    attachmentUrl = await uploadAttachment(storage, conversationId, file);
-                    attachmentType = fileType;
-                }
+                attachmentUrl = await uploadFileToServer(file);
+                attachmentType = fileType;
             }
-            await addDoc(messagesCol, {
-                body: messageBody || null,
-                attachmentUrl,
-                attachmentType,
-                senderType: 'agent',
-                createdAt: serverTimestamp(),
-            });
             try {
                 await fetch(`/api/activity/conversation/${conversationId}`, {
                     method: 'POST',
@@ -416,9 +522,26 @@ export function mountChat(el) {
                     body: JSON.stringify({ body: messageBody, sender_type: 'agent' })
                 });
             } catch (e) {}
+            try {
+                await fetch(`/api/activity/conversation/${conversationId}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+                    },
+                    body: JSON.stringify({
+                        body: messageBody || null,
+                        attachment_url: attachmentUrl || null,
+                        attachment_type: attachmentType || null,
+                        reply_to_id: replyToMessage?.id || null,
+                    }),
+                });
+            } catch (e) {}
             textInput.value = '';
             if (fileInput.value) fileInput.value = '';
             selectedFile = null;
+            replyToMessage = null;
+            renderReplyPreview();
             clearPreview();
             scrollToBottom();
         } catch (err) {
@@ -429,35 +552,7 @@ export function mountChat(el) {
         }
     });
     
-    // Global functions for edit and delete
-    window.editMessage = async function(messageId, currentText) {
-        const newText = prompt('Edit message:', currentText);
-        if (newText !== null && newText !== currentText) {
-            try {
-                const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
-                await updateDoc(messageRef, {
-                    body: newText,
-                    edited: true,
-                    editedAt: serverTimestamp()
-                });
-            } catch (error) {
-                console.error('Error editing message:', error);
-                alert('Failed to edit message');
-            }
-        }
-    };
-    
-    window.deleteMessage = async function(messageId) {
-        if (confirm('Are you sure you want to delete this message?')) {
-            try {
-                const messageRef = doc(db, 'conversations', conversationId, 'messages', messageId);
-                await deleteDoc(messageRef);
-            } catch (error) {
-                console.error('Error deleting message:', error);
-                alert('Failed to delete message');
-            }
-        }
-    };
+    // Edit/delete are not supported with backend polling.
 }
 
 
