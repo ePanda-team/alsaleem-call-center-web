@@ -6,7 +6,6 @@ require_once __DIR__.'/upload_config.php';
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
-use Illuminate\Http\Middleware\HandleCors;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -16,10 +15,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // CORS must run first so OPTIONS preflight is answered before route matching
-        $middleware->prepend(\App\Http\Middleware\AddCorsHeaders::class);
-        $middleware->prepend(HandleCors::class);
-
         $middleware->alias([
             'role' => App\Http\Middleware\EnsureUserHasRole::class,
             'doctor.token' => App\Http\Middleware\DoctorTokenAuth::class,
