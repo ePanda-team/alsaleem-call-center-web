@@ -11,19 +11,29 @@ class AddCorsHeaders
     public function handle(Request $request, Closure $next): Response
     {
         if ($request->isMethod('OPTIONS')) {
-            return response('', 204)
-                ->header('Access-Control-Allow-Origin', '*')
-                ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-                ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
-                ->header('Access-Control-Max-Age', '86400');
+            $response = response('', 204);
+            $this->withCors($response);
+            $response->headers->set('Access-Control-Max-Age', '86400');
+
+            return $response;
         }
 
-        $response = $next($request);
+        try {
+            $response = $next($request);
+        } catch (\Throwable $e) {
+            $response = app(\Illuminate\Contracts\Debug\ExceptionHandler::class)->render($request, $e);
+        }
 
-        return $response
-            ->header('Access-Control-Allow-Origin', '*')
-            ->header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-            ->header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin')
-            ->header('Access-Control-Expose-Headers', 'Content-Type, Authorization');
+        $this->withCors($response);
+
+        return $response;
+    }
+
+    private function withCors(Response $response): void
+    {
+        $response->headers->set('Access-Control-Allow-Origin', '*');
+        $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+        $response->headers->set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin');
+        $response->headers->set('Access-Control-Expose-Headers', 'Content-Type, Authorization');
     }
 }
