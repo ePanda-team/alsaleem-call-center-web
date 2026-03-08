@@ -16,10 +16,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        // CORS must run first so OPTIONS preflight is answered before route matching
+        $middleware->prepend(\App\Http\Middleware\AddCorsHeaders::class);
         $middleware->prepend(HandleCors::class);
-        $middleware->api(prepend: [
-            \App\Http\Middleware\AddCorsHeaders::class,
-        ]);
 
         $middleware->alias([
             'role' => App\Http\Middleware\EnsureUserHasRole::class,

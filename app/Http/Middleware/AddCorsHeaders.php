@@ -10,7 +10,8 @@ class AddCorsHeaders
 {
     public function handle(Request $request, Closure $next): Response
     {
-        if ($request->isMethod('OPTIONS')) {
+        // Handle preflight: must run before route matching (this middleware must be global)
+        if ($request->isMethod('OPTIONS') && $request->is('api/*')) {
             $response = response('', 204);
             $this->withCors($response);
             $response->headers->set('Access-Control-Max-Age', '86400');
@@ -24,7 +25,10 @@ class AddCorsHeaders
             $response = app(\Illuminate\Contracts\Debug\ExceptionHandler::class)->render($request, $e);
         }
 
-        $this->withCors($response);
+        // Add CORS to all API responses (including 4xx/5xx from exceptions)
+        if ($request->is('api/*')) {
+            $this->withCors($response);
+        }
 
         return $response;
     }
