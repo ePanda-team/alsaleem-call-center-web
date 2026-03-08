@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -21,13 +21,15 @@ class UserController extends Controller
         if ($request->filled('role')) {
             $query->where('role', $request->string('role'));
         }
+
         $users = $query->orderByDesc('id')->paginate(20)->appends($request->query());
-        return view('admin.users.index', compact('users'));
+
+        return response()->json($users);
     }
 
-    public function create()
+    public function show(User $user)
     {
-        return view('admin.users.create');
+        return response()->json($user);
     }
 
     public function store(Request $request)
@@ -39,13 +41,10 @@ class UserController extends Controller
             'role' => ['required', 'in:admin,supervisor,agent'],
             'branch_assignment' => ['nullable', 'string', 'max:255'],
         ]);
-        User::create($data);
-        return redirect()->route('admin.users.index')->with('status', 'User created');
-    }
 
-    public function edit(User $user)
-    {
-        return view('admin.users.edit', compact('user'));
+        $user = User::create($data);
+
+        return response()->json($user, 201);
     }
 
     public function update(Request $request, User $user)
@@ -57,18 +56,21 @@ class UserController extends Controller
             'role' => ['required', 'in:admin,supervisor,agent'],
             'branch_assignment' => ['nullable', 'string', 'max:255'],
         ]);
+
         if (empty($data['password'])) {
             unset($data['password']);
         }
+
         $user->update($data);
-        return redirect()->route('admin.users.index')->with('status', 'User updated');
+
+        return response()->json($user);
     }
 
     public function destroy(User $user)
     {
         $user->delete();
-        return back()->with('status', 'User deleted');
+
+        return response()->json(['ok' => true]);
     }
 }
-
 

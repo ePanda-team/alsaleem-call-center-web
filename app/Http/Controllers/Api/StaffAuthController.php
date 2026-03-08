@@ -1,0 +1,44 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
+
+class StaffAuthController extends Controller
+{
+    public function login(Request $request)
+    {
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $user = User::where('email', $data['email'])->first();
+        if (!$user || !Hash::check($data['password'], $user->password)) {
+            return response()->json(['message' => 'Invalid credentials'], 422);
+        }
+
+        $user->api_token = Str::random(60);
+        $user->save();
+
+        return response()->json([
+            'token' => $user->api_token,
+            'user' => $user,
+        ]);
+    }
+
+    public function logout(Request $request)
+    {
+        $user = $request->user();
+        if ($user) {
+            $user->api_token = null;
+            $user->save();
+        }
+        return response()->json(['ok' => true]);
+    }
+}
+

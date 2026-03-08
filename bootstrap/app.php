@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => App\Http\Middleware\EnsureUserHasRole::class,
             'doctor.token' => App\Http\Middleware\DoctorTokenAuth::class,
+            'staff.token' => App\Http\Middleware\StaffTokenAuth::class,
             'setlocale' => App\Http\Middleware\SetLocale::class,
             'upload.limits' => App\Http\Middleware\SetUploadLimits::class,
         ]);

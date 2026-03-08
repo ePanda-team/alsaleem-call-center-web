@@ -28,7 +28,7 @@ return new class extends Migration
         // First convert back to old values (while column is still VARCHAR)
         DB::statement("UPDATE doctors SET experience_level = 'junior' WHERE experience_level = 'specialist'");
         DB::statement("UPDATE doctors SET experience_level = 'senior' WHERE experience_level = 'doctor'");
-        DB::statement("UPDATE doctors SET experience_level = 'junior' WHERE experience_level = 'Consultant'");
+        DB::statement("UPDATE doctors SET experience_level = 'junior' WHERE experience_level = 'consultant'");
         
         // Then restore the original enum definition
         DB::statement("ALTER TABLE doctors MODIFY COLUMN experience_level ENUM('junior', 'senior') DEFAULT 'junior'");

@@ -78,7 +78,7 @@ return new class extends Migration
                 } elseif ($level === 'doctor') {
                     $updatedLevels[] = 'senior';
                     $hasChanges = true;
-                } elseif ($level === 'Consultant') {
+                } elseif ($level === 'consultant') {
                     // Consultant didn't exist in old system, map to junior
                     $updatedLevels[] = 'junior';
                     $hasChanges = true;

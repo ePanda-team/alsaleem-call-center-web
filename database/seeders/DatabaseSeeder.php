@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Doctor;
 use App\Models\User;
 use App\Models\Conversation;
+use Database\Seeders\SpecialtySeeder;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -16,6 +17,8 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // User::factory(10)->create();
+
+        $this->call(SpecialtySeeder::class);
 
         User::query()->updateOrCreate(
             ['email' => 'admin@example.com'],

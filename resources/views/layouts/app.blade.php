@@ -12,7 +12,9 @@
             <div class="max-w-7xl mx-auto px-4 py-4 grid grid-cols-3 items-center">
                 <div>
                     @guest
-                        <a href="{{ route('login') }}" class="px-4 py-2 bg-[#FE0003] hover:bg-red-700 text-white rounded-lg font-medium transition-all duration-200">{{ __('messages.login') }}</a>
+                        @unless (request()->routeIs('login*'))
+                            <a href="{{ route('login') }}" class="px-4 py-2 bg-[#FE0003] hover:bg-red-700 text-white rounded-lg font-medium transition-all duration-200">{{ __('messages.login') }}</a>
+                        @endunless
                     @endguest
                 </div>
                 <div class="text-center">

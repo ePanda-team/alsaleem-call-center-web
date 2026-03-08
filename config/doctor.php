@@ -10,7 +10,7 @@ return [
     'experience_levels' => [
         'specialist' => 'اخصائي',
         'doctor' => 'دكتور',
-        'Consultant' => 'استشاري',
+        'consultant' => 'استشاري',
     ],
 ];
 

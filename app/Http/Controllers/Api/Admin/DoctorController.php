@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Http\Controllers\Admin;
+namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Doctor;
 use App\Models\Conversation;
+use App\Models\Doctor;
 use Illuminate\Http\Request;
 
 class DoctorController extends Controller
@@ -23,16 +23,15 @@ class DoctorController extends Controller
         if ($request->filled('experience')) {
             $query->where('experience_level', $request->string('experience'));
         }
+
         $doctors = $query->orderByDesc('id')->paginate(20)->appends($request->query());
-        $experienceLevels = config('doctor.experience_levels');
-        return view('admin.doctors.index', compact('doctors', 'experienceLevels'));
+
+        return response()->json($doctors);
     }
 
-    public function create()
+    public function show(Doctor $doctor)
     {
-        $specialties = Doctor::getSpecialties();
-        $experienceLevels = config('doctor.experience_levels');
-        return view('admin.doctors.create', compact('specialties', 'experienceLevels'));
+        return response()->json($doctor);
     }
 
     public function store(Request $request)
@@ -45,16 +44,11 @@ class DoctorController extends Controller
             'phone' => ['nullable', 'string', 'max:255'],
             'password' => ['required', 'string', 'min:6'],
         ]);
+
         $doctor = Doctor::create($data);
         Conversation::firstOrCreate(['doctor_id' => $doctor->id]);
-        return redirect()->route('admin.doctors.index')->with('status', 'Doctor created');
-    }
 
-    public function edit(Doctor $doctor)
-    {
-        $specialties = Doctor::getSpecialties();
-        $experienceLevels = config('doctor.experience_levels');
-        return view('admin.doctors.edit', compact('doctor', 'specialties', 'experienceLevels'));
+        return response()->json($doctor, 201);
     }
 
     public function update(Request $request, Doctor $doctor)
@@ -67,18 +61,21 @@ class DoctorController extends Controller
             'phone' => ['nullable', 'string', 'max:255'],
             'password' => ['nullable', 'string', 'min:6'],
         ]);
+
         if (empty($data['password'])) {
             unset($data['password']);
         }
+
         $doctor->update($data);
-        return redirect()->route('admin.doctors.index')->with('status', 'Doctor updated');
+
+        return response()->json($doctor);
     }
 
     public function destroy(Doctor $doctor)
     {
         $doctor->delete();
-        return back()->with('status', 'Doctor deleted');
+
+        return response()->json(['ok' => true]);
     }
 }
-
 
