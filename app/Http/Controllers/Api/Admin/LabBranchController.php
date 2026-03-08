@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\LabBranch;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class LabBranchController extends Controller
 {
@@ -21,13 +22,18 @@ class LabBranchController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:255'],
             'is_active' => ['required', 'boolean'],
         ]);
 
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
         $branch = LabBranch::create($data);
 
         return response()->json($branch, 201);
@@ -35,13 +41,18 @@ class LabBranchController extends Controller
 
     public function update(Request $request, LabBranch $labBranch)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:255'],
             'phone' => ['nullable', 'string', 'max:255'],
             'is_active' => ['required', 'boolean'],
         ]);
 
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
         $labBranch->update($data);
 
         return response()->json($labBranch);

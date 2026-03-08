@@ -8,15 +8,22 @@ use App\Models\Message;
 use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class ActivityController extends Controller
 {
     public function updateConversation(Request $request, Conversation $conversation)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'body' => ['nullable', 'string'],
             'sender_type' => ['required', 'in:agent,doctor'],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
 
         $conversation->last_message_at = now();
         $conversation->last_message_preview = $data['body']
@@ -37,12 +44,18 @@ class ActivityController extends Controller
 
     public function storeMessage(Request $request, Conversation $conversation)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'body' => ['nullable', 'string'],
             'attachment_url' => ['nullable', 'url'],
             'attachment_type' => ['nullable', 'in:voice,document,image,video'],
             'reply_to_id' => ['nullable', 'integer', 'min:1'],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
 
         $user = $request->user();
 
@@ -176,9 +189,15 @@ class ActivityController extends Controller
 
     public function updateMessage(Request $request, Conversation $conversation, Message $message)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'body' => ['required', 'string'],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
 
         $user = $request->user();
 

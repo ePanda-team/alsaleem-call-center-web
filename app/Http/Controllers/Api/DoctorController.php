@@ -10,6 +10,7 @@ use App\Models\Message;
 use App\Models\TestResult;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 class DoctorController extends Controller
 {
@@ -24,10 +25,15 @@ class DoctorController extends Controller
     {
         $doctor = $request->attributes->get('doctor');
 
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'fcm_token' => ['required', 'string', 'max:1000'],
         ]);
 
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
         $doctor->fcm_token = $data['fcm_token'];
         $doctor->save();
 
@@ -50,7 +56,7 @@ class DoctorController extends Controller
     {
         $doctor = $request->attributes->get('doctor');
 
-        $filters = $request->validate([
+        $validator = Validator::make($request->all(), [
             'id' => ['nullable', 'integer', 'min:1'],
             'patient_name' => ['nullable', 'string', 'max:255'],
             'patient_age' => ['nullable', 'integer', 'min:0', 'max:150'],
@@ -62,6 +68,12 @@ class DoctorController extends Controller
             'updated_from' => ['nullable', 'date'],
             'updated_to' => ['nullable', 'date'],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $filters = $validator->validated();
 
         $results = TestResult::query()
             ->where('doctor_id', $doctor->id)
@@ -162,10 +174,15 @@ class DoctorController extends Controller
 
         abort_unless($result->doctor_id === $doctor->id, 403);
 
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'doctor_comment' => ['nullable', 'string'],
         ]);
 
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
         $result->doctor_comment = $data['doctor_comment'] ?? null;
         $result->save();
 
@@ -251,12 +268,18 @@ class DoctorController extends Controller
 
         abort_unless($conversation->doctor_id === $doctor->id, 403);
 
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'body' => ['nullable', 'string'],
             'attachment_url' => ['nullable', 'url'],
             'attachment_type' => ['nullable', 'in:voice,document,image,video'],
             'reply_to_id' => ['nullable', 'integer', 'min:1'],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
 
         if (!empty($data['reply_to_id'])) {
             $replyMessage = Message::where('id', $data['reply_to_id'])
@@ -319,13 +342,19 @@ class DoctorController extends Controller
     {
         $doctor = $request->attributes->get('doctor');
 
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'name' => ['nullable', 'string', 'max:255'],
             'username' => ['nullable', 'string', 'max:255'],
             'speciality' => ['nullable', 'string', 'max:255'],
             'experience_level' => ['nullable', 'string', 'max:255'],
             'password' => ['nullable', 'string', 'min:6', 'max:255'],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
 
         if (array_key_exists('name', $data)) {
             $doctor->name = $data['name'];

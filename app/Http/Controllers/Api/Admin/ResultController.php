@@ -7,6 +7,7 @@ use App\Models\Doctor;
 use App\Models\TestResult;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class ResultController extends Controller
 {
@@ -37,7 +38,7 @@ class ResultController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'patient_name' => ['required', 'string', 'max:255'],
             'patient_age' => ['nullable', 'integer', 'min:0', 'max:150'],
             'hospital' => ['nullable', 'string', 'max:255'],
@@ -45,6 +46,12 @@ class ResultController extends Controller
             'doctor_id' => ['required', 'exists:doctors,id'],
             'pdf' => ['required', 'file', 'mimetypes:application/pdf'],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
 
         $uploadDir = public_path('storage/results');
         if (!file_exists($uploadDir)) {
@@ -74,7 +81,7 @@ class ResultController extends Controller
 
     public function update(Request $request, TestResult $result)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'patient_name' => ['required', 'string', 'max:255'],
             'patient_age' => ['nullable', 'integer', 'min:0', 'max:150'],
             'hospital' => ['nullable', 'string', 'max:255'],
@@ -82,6 +89,12 @@ class ResultController extends Controller
             'doctor_id' => ['required', 'exists:doctors,id'],
             'pdf' => ['nullable', 'file', 'mimetypes:application/pdf'],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
 
         if ($request->hasFile('pdf')) {
             if ($result->pdf_path) {

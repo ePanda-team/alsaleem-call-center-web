@@ -7,6 +7,7 @@ use App\Models\Announcement;
 use App\Rules\MaxFileSize;
 use App\Services\NotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class AnnouncementController extends Controller
 {
@@ -23,7 +24,7 @@ class AnnouncementController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'title' => ['required', 'string', 'max:255'],
             'body' => ['required', 'string'],
             'target_specialties' => ['nullable', 'array'],
@@ -33,6 +34,12 @@ class AnnouncementController extends Controller
             'media' => ['nullable', 'array'],
             'media.*' => ['file', 'mimes:jpg,jpeg,png,gif,mp4,avi,mov,webm,ogg,mp3,wav,m4a,aac,pdf,doc,docx,txt', new MaxFileSize()],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
 
         $mediaFiles = [];
         if ($request->hasFile('media')) {
@@ -63,7 +70,7 @@ class AnnouncementController extends Controller
 
     public function update(Request $request, Announcement $announcement)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'title' => ['required', 'string', 'max:255'],
             'body' => ['required', 'string'],
             'target_specialties' => ['nullable', 'array'],
@@ -73,6 +80,12 @@ class AnnouncementController extends Controller
             'media' => ['nullable', 'array'],
             'media.*' => ['file', 'mimes:jpg,jpeg,png,gif,mp4,avi,mov,webm,ogg,mp3,wav,m4a,aac,pdf,doc,docx,txt', new MaxFileSize()],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
 
         $mediaFiles = $announcement->media_files ?? [];
         if ($request->hasFile('media')) {

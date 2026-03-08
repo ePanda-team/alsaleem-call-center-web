@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Slider;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class SliderController extends Controller
 {
@@ -21,11 +22,17 @@ class SliderController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'title' => ['nullable', 'string', 'max:255'],
             'image' => ['required', 'image'],
             'position' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
 
         $uploadDir = public_path('storage/sliders');
         if (!file_exists($uploadDir)) {
@@ -46,11 +53,17 @@ class SliderController extends Controller
 
     public function update(Request $request, Slider $slider)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'title' => ['nullable', 'string', 'max:255'],
             'image' => ['nullable', 'image'],
             'position' => ['nullable', 'integer', 'min:0'],
         ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
 
         if ($request->hasFile('image')) {
             if ($slider->image_path) {

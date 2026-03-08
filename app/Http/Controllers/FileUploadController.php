@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 class FileUploadController extends Controller
@@ -15,9 +16,16 @@ class FileUploadController extends Controller
      */
     public function upload(Request $request)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'file' => ['required', 'file', 'max:' . (config('upload.max_file_size', 10240) * 1024)], // Convert KB to bytes
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Validation failed',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
 
         $file = $request->file('file');
         

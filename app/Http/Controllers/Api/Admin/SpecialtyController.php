@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Specialty;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
 class SpecialtyController extends Controller
 {
@@ -30,11 +31,16 @@ class SpecialtyController extends Controller
 
     public function store(Request $request)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'name_en' => ['required', 'string', 'max:255', 'unique:specialties,name_en'],
             'name_ar' => ['required', 'string', 'max:255', 'unique:specialties,name_ar'],
         ]);
 
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
         $specialty = Specialty::create($data);
 
         return response()->json($specialty, 201);
@@ -42,11 +48,16 @@ class SpecialtyController extends Controller
 
     public function update(Request $request, Specialty $specialty)
     {
-        $data = $request->validate([
+        $validator = Validator::make($request->all(), [
             'name_en' => ['required', 'string', 'max:255', 'unique:specialties,name_en,' . $specialty->id],
             'name_ar' => ['required', 'string', 'max:255', 'unique:specialties,name_ar,' . $specialty->id],
         ]);
 
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
         $specialty->update($data);
 
         return response()->json($specialty);
