@@ -8,7 +8,8 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'paths' => ['api/*', 'sanctum/csrf-cookie'],
+    // CORS is handled by the server (Nginx/Apache). Empty paths so Laravel does not add duplicate headers.
+    'paths' => [],
 
     'allowed_methods' => ['*'],
 
