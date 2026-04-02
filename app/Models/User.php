@@ -4,6 +4,8 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -22,6 +24,7 @@ class User extends Authenticatable
         'email',
         'password',
         'role',
+        'role_id',
         'branch_assignment',
     ];
 
@@ -33,7 +36,6 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
-        'api_token',
     ];
 
     /**
@@ -47,5 +49,39 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function staffRole(): BelongsTo
+    {
+        return $this->belongsTo(Role::class, 'role_id');
+    }
+
+    public function staffAccessTokens(): HasMany
+    {
+        return $this->hasMany(StaffAccessToken::class);
+    }
+
+    /**
+     * Effective UI permissions for staff. Admins always get full access regardless of role record.
+     *
+     * @return array<string, bool>
+     */
+    public function resolveStaffPermissions(): array
+    {
+        if ($this->role === 'admin') {
+            return Role::allPermissionsTrue();
+        }
+
+        if ($this->role_id) {
+            $this->loadMissing('staffRole');
+            if ($this->staffRole) {
+                $permissions = Role::normalizePermissionsArray($this->staffRole->permissions);
+                $permissions['roles_management'] = false;
+
+                return $permissions;
+            }
+        }
+
+        return array_fill_keys(config('staff_permissions.keys', []), false);
     }
 }

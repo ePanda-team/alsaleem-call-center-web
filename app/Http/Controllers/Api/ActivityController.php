@@ -36,7 +36,7 @@ class ActivityController extends Controller
 
         $conversation->save();
 
-        $notificationService = new NotificationService();
+        $notificationService = new NotificationService;
         $notificationService->sendNewMessageNotification($conversation->doctor, $conversation);
 
         return response()->json(['ok' => true]);
@@ -64,23 +64,23 @@ class ActivityController extends Controller
             $conversation->save();
         }
 
-        if (!empty($data['reply_to_id'])) {
+        if (! empty($data['reply_to_id'])) {
             $replyMessage = Message::where('id', $data['reply_to_id'])
                 ->where('conversation_id', $conversation->id)
                 ->first();
-            if (!$replyMessage) {
+            if (! $replyMessage) {
                 return response()->json(['message' => 'Invalid reply_to_id'], 422);
             }
         }
 
-        $message = new Message();
+        $message = new Message;
         $message->conversation_id = $conversation->id;
         $message->sender_type = 'user';
         $message->sender_id = $user?->id ?? 0;
         $message->body = $data['body'] ?? null;
         $message->reply_to_id = $data['reply_to_id'] ?? null;
 
-        if (!empty($data['attachment_url'])) {
+        if (! empty($data['attachment_url'])) {
             $message->attachment_path = $data['attachment_url'];
             $message->attachment_type = $data['attachment_type'] ?? null;
         }
@@ -96,10 +96,18 @@ class ActivityController extends Controller
 
     public function messages(Request $request, Conversation $conversation)
     {
+        Message::where('conversation_id', $conversation->id)
+            ->where('sender_type', 'doctor')
+            ->whereNull('read_at')
+            ->update(['read_at' => now()]);
+
+        $conversation->unread_doctor_count = 0;
+        $conversation->save();
+
         $limit = min((int) $request->query('limit', 50), 200);
         $sinceId = $request->query('since_id');
 
-        $messagesQuery = Message::where('conversation_id', $conversation->id);
+        $messagesQuery = Message::withTrashed()->where('conversation_id', $conversation->id);
         if ($sinceId !== null && is_numeric($sinceId)) {
             $messagesQuery->where('id', '>', (int) $sinceId);
         }
@@ -127,7 +135,7 @@ class ActivityController extends Controller
         $replyIds = $messages->pluck('reply_to_id')->filter()->unique()->values();
         $replyMessages = $replyIds->isEmpty()
             ? collect()
-            : Message::whereIn('id', $replyIds)->get()->keyBy('id');
+            : Message::withTrashed()->whereIn('id', $replyIds)->get()->keyBy('id');
 
         $payload = $messages->map(function (Message $m) use ($conversation, $usersById, $replyMessages) {
             $senderName = null;
@@ -138,10 +146,10 @@ class ActivityController extends Controller
             }
 
             $attachmentUrl = null;
-            if (!empty($m->attachment_path)) {
+            if (! empty($m->attachment_path)) {
                 $attachmentUrl = str_starts_with($m->attachment_path, 'http')
                     ? $m->attachment_path
-                    : asset('storage/' . $m->attachment_path);
+                    : asset('storage/'.$m->attachment_path);
             }
 
             $reply = null;
@@ -160,12 +168,12 @@ class ActivityController extends Controller
                         'attachment_url' => $replyMessage->attachment_path
                             ? (str_starts_with($replyMessage->attachment_path, 'http')
                                 ? $replyMessage->attachment_path
-                                : asset('storage/' . $replyMessage->attachment_path))
+                                : asset('storage/'.$replyMessage->attachment_path))
                             : null,
                         'attachment_type' => $replyMessage->attachment_type,
                         'created_at' => $replyMessage->created_at?->toIso8601String(),
                         'read_at' => $replyMessage->read_at?->toIso8601String(),
-                    ];
+                    ] + $this->messageDeletionFlags($replyMessage);
                 }
             }
 
@@ -181,7 +189,7 @@ class ActivityController extends Controller
                 'reply_to' => $reply,
                 'created_at' => $m->created_at?->toIso8601String(),
                 'read_at' => $m->read_at?->toIso8601String(),
-            ];
+            ] + $this->messageDeletionFlags($m);
         });
 
         return response()->json(['messages' => $payload]);
@@ -204,7 +212,7 @@ class ActivityController extends Controller
         if ($message->conversation_id !== $conversation->id || $message->sender_type !== 'user') {
             return response()->json(['message' => 'Not allowed'], 403);
         }
-        if (!$user || $message->sender_id !== $user->id) {
+        if (! $user || $message->sender_id !== $user->id) {
             return response()->json(['message' => 'Not allowed'], 403);
         }
 
@@ -228,7 +236,7 @@ class ActivityController extends Controller
         if ($message->conversation_id !== $conversation->id || $message->sender_type !== 'user') {
             return response()->json(['message' => 'Not allowed'], 403);
         }
-        if (!$user || $message->sender_id !== $user->id) {
+        if (! $user || $message->sender_id !== $user->id) {
             return response()->json(['message' => 'Not allowed'], 403);
         }
 
@@ -246,5 +254,15 @@ class ActivityController extends Controller
 
         return response()->json(['ok' => true]);
     }
-}
 
+    /**
+     * @return array{is_deleted: bool, deleted_at: string|null}
+     */
+    private function messageDeletionFlags(Message $message): array
+    {
+        return [
+            'is_deleted' => $message->trashed(),
+            'deleted_at' => $message->deleted_at?->toIso8601String(),
+        ];
+    }
+}

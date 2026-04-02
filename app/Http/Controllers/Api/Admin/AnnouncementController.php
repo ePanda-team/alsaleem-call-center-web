@@ -14,6 +14,7 @@ class AnnouncementController extends Controller
     public function index(Request $request)
     {
         $announcements = Announcement::withCount('views')->orderByDesc('id')->paginate(20)->appends($request->query());
+
         return response()->json($announcements);
     }
 
@@ -32,7 +33,7 @@ class AnnouncementController extends Controller
             'target_experience_levels' => ['nullable', 'array'],
             'target_experience_levels.*' => ['string', 'in:specialist,doctor,consultant'],
             'media' => ['nullable', 'array'],
-            'media.*' => ['file', 'mimes:jpg,jpeg,png,gif,mp4,avi,mov,webm,ogg,mp3,wav,m4a,aac,pdf,doc,docx,txt', new MaxFileSize()],
+            'media.*' => ['file', 'mimes:jpg,jpeg,png,gif,mp4,avi,mov,webm,ogg,mp3,wav,m4a,aac,pdf,doc,docx,txt', new MaxFileSize],
         ]);
 
         if ($validator->fails()) {
@@ -44,25 +45,26 @@ class AnnouncementController extends Controller
         $mediaFiles = [];
         if ($request->hasFile('media')) {
             $uploadDir = public_path('storage/announcements');
-            if (!file_exists($uploadDir)) {
+            if (! file_exists($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
             foreach ($request->file('media') as $file) {
-                $filename = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
-                $file->move($uploadDir, $filename);
+                $filename = time().'_'.uniqid().'_'.$file->getClientOriginalName();
                 $mediaFiles[] = [
-                    'path' => 'announcements/' . $filename,
+                    'path' => 'announcements/'.$filename,
                     'type' => $file->getMimeType(),
                     'name' => $file->getClientOriginalName(),
                     'size' => $file->getSize(),
                 ];
+                $file->move($uploadDir, $filename);
+
             }
             $data['media_files'] = $mediaFiles;
         }
 
         $announcement = Announcement::create($data);
 
-        $notificationService = new NotificationService();
+        $notificationService = new NotificationService;
         $notificationService->sendAnnouncementNotification($announcement);
 
         return response()->json($announcement, 201);
@@ -78,7 +80,7 @@ class AnnouncementController extends Controller
             'target_experience_levels' => ['nullable', 'array'],
             'target_experience_levels.*' => ['string', 'in:specialist,doctor,consultant'],
             'media' => ['nullable', 'array'],
-            'media.*' => ['file', 'mimes:jpg,jpeg,png,gif,mp4,avi,mov,webm,ogg,mp3,wav,m4a,aac,pdf,doc,docx,txt', new MaxFileSize()],
+            'media.*' => ['file', 'mimes:jpg,jpeg,png,gif,mp4,avi,mov,webm,ogg,mp3,wav,m4a,aac,pdf,doc,docx,txt', new MaxFileSize],
         ]);
 
         if ($validator->fails()) {
@@ -90,18 +92,19 @@ class AnnouncementController extends Controller
         $mediaFiles = $announcement->media_files ?? [];
         if ($request->hasFile('media')) {
             $uploadDir = public_path('storage/announcements');
-            if (!file_exists($uploadDir)) {
+            if (! file_exists($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
             foreach ($request->file('media') as $file) {
-                $filename = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
-                $file->move($uploadDir, $filename);
+                $filename = time().'_'.uniqid().'_'.$file->getClientOriginalName();
+
                 $mediaFiles[] = [
-                    'path' => 'announcements/' . $filename,
+                    'path' => 'announcements/'.$filename,
                     'type' => $file->getMimeType(),
                     'name' => $file->getClientOriginalName(),
                     'size' => $file->getSize(),
                 ];
+                $file->move($uploadDir, $filename);
             }
             $data['media_files'] = $mediaFiles;
         }
@@ -116,7 +119,7 @@ class AnnouncementController extends Controller
         if ($announcement->media_files && is_array($announcement->media_files)) {
             foreach ($announcement->media_files as $media) {
                 if (isset($media['path'])) {
-                    $filePath = public_path('storage/' . $media['path']);
+                    $filePath = public_path('storage/'.$media['path']);
                     if (file_exists($filePath)) {
                         unlink($filePath);
                     }
@@ -131,7 +134,7 @@ class AnnouncementController extends Controller
     public function viewers(Announcement $announcement)
     {
         $viewers = $announcement->views()->with('doctor')->orderByDesc('viewed_at')->get();
+
         return response()->json($viewers);
     }
 }
-

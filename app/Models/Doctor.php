@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
@@ -18,11 +19,18 @@ class Doctor extends Authenticatable
         'phone',
         'fcm_token',
         'password',
+        'bio',
+        'profile_picture_path',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'profile_picture_path',
+    ];
+
+    protected $appends = [
+        'profile_picture_url',
     ];
 
     protected function casts(): array
@@ -32,10 +40,32 @@ class Doctor extends Authenticatable
         ];
     }
 
+    public function getProfilePictureUrlAttribute(): ?string
+    {
+        if (empty($this->profile_picture_path)) {
+            return null;
+        }
+
+        return asset('storage/'.$this->profile_picture_path);
+    }
+
     public static function getSpecialties()
     {
         return config('doctor.specialties');
     }
+
+    public function conversation()
+    {
+        return $this->hasOne(Conversation::class);
+    }
+
+    public function messages()
+    {
+        return $this->hasManyThrough(Message::class, Conversation::class, 'doctor_id', 'conversation_id');
+    }
+
+    public function doctorAccessTokens(): HasMany
+    {
+        return $this->hasMany(DoctorAccessToken::class);
+    }
 }
-
-

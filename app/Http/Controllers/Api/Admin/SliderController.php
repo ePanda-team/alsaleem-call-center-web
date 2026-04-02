@@ -12,6 +12,10 @@ class SliderController extends Controller
     public function index()
     {
         $sliders = Slider::orderBy('position')->get();
+        foreach ($sliders as $slider) {
+            $slider->image_url = asset('storage/'.$slider->image_path);
+        }
+
         return response()->json($sliders);
     }
 
@@ -35,12 +39,12 @@ class SliderController extends Controller
         $data = $validator->validated();
 
         $uploadDir = public_path('storage/sliders');
-        if (!file_exists($uploadDir)) {
+        if (! file_exists($uploadDir)) {
             mkdir($uploadDir, 0755, true);
         }
-        $filename = time() . '_' . uniqid() . '_' . $request->file('image')->getClientOriginalName();
+        $filename = time().'_'.uniqid().'_'.$request->file('image')->getClientOriginalName();
         $request->file('image')->move($uploadDir, $filename);
-        $path = 'sliders/' . $filename;
+        $path = 'sliders/'.$filename;
 
         $slider = Slider::create([
             'title' => $data['title'] ?? null,
@@ -67,18 +71,18 @@ class SliderController extends Controller
 
         if ($request->hasFile('image')) {
             if ($slider->image_path) {
-                $oldPath = public_path('storage/' . $slider->image_path);
+                $oldPath = public_path('storage/'.$slider->image_path);
                 if (file_exists($oldPath)) {
                     unlink($oldPath);
                 }
             }
             $uploadDir = public_path('storage/sliders');
-            if (!file_exists($uploadDir)) {
+            if (! file_exists($uploadDir)) {
                 mkdir($uploadDir, 0755, true);
             }
-            $filename = time() . '_' . uniqid() . '_' . $request->file('image')->getClientOriginalName();
+            $filename = time().'_'.uniqid().'_'.$request->file('image')->getClientOriginalName();
             $request->file('image')->move($uploadDir, $filename);
-            $slider->image_path = 'sliders/' . $filename;
+            $slider->image_path = 'sliders/'.$filename;
         }
 
         $slider->title = $data['title'] ?? null;
@@ -93,7 +97,7 @@ class SliderController extends Controller
     public function destroy(Slider $slider)
     {
         if ($slider->image_path) {
-            $filePath = public_path('storage/' . $slider->image_path);
+            $filePath = public_path('storage/'.$slider->image_path);
             if (file_exists($filePath)) {
                 unlink($filePath);
             }
@@ -103,4 +107,3 @@ class SliderController extends Controller
         return response()->json(['ok' => true]);
     }
 }
-

@@ -21,8 +21,18 @@ class ResultController extends Controller
                     ->orWhere('lab_branch', 'like', "%{$q}%");
             });
         }
+        if ($request->filled('hospital')) {
+            $h = $request->string('hospital');
+            $query->where('hospital', 'like', '%'.$h.'%');
+        }
         if ($request->filled('doctor_id')) {
             $query->where('doctor_id', (int) $request->input('doctor_id'));
+        }
+        if ($request->filled('created_from')) {
+            $query->whereDate('created_at', '>=', $request->string('created_from'));
+        }
+        if ($request->filled('created_to')) {
+            $query->whereDate('created_at', '<=', $request->string('created_to'));
         }
 
         $results = $query->orderByDesc('id')->paginate(20)->appends($request->query());

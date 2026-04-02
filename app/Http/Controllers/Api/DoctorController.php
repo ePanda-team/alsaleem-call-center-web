@@ -11,6 +11,7 @@ use App\Models\TestResult;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class DoctorController extends Controller
 {
@@ -80,31 +81,31 @@ class DoctorController extends Controller
             ->when(isset($filters['id']), function ($query) use ($filters) {
                 $query->where('id', $filters['id']);
             })
-            ->when(!empty($filters['patient_name']), function ($query) use ($filters) {
-                $query->where('patient_name', 'like', '%' . $filters['patient_name'] . '%');
+            ->when(! empty($filters['patient_name']), function ($query) use ($filters) {
+                $query->where('patient_name', 'like', '%'.$filters['patient_name'].'%');
             })
             ->when(isset($filters['patient_age']), function ($query) use ($filters) {
                 $query->where('patient_age', $filters['patient_age']);
             })
-            ->when(!empty($filters['hospital']), function ($query) use ($filters) {
-                $query->where('hospital', 'like', '%' . $filters['hospital'] . '%');
+            ->when(! empty($filters['hospital']), function ($query) use ($filters) {
+                $query->where('hospital', 'like', '%'.$filters['hospital'].'%');
             })
-            ->when(!empty($filters['lab_branch']), function ($query) use ($filters) {
-                $query->where('lab_branch', 'like', '%' . $filters['lab_branch'] . '%');
+            ->when(! empty($filters['lab_branch']), function ($query) use ($filters) {
+                $query->where('lab_branch', 'like', '%'.$filters['lab_branch'].'%');
             })
-            ->when(!empty($filters['doctor_comment']), function ($query) use ($filters) {
-                $query->where('doctor_comment', 'like', '%' . $filters['doctor_comment'] . '%');
+            ->when(! empty($filters['doctor_comment']), function ($query) use ($filters) {
+                $query->where('doctor_comment', 'like', '%'.$filters['doctor_comment'].'%');
             })
-            ->when(!empty($filters['created_from']), function ($query) use ($filters) {
+            ->when(! empty($filters['created_from']), function ($query) use ($filters) {
                 $query->whereDate('created_at', '>=', $filters['created_from']);
             })
-            ->when(!empty($filters['created_to']), function ($query) use ($filters) {
+            ->when(! empty($filters['created_to']), function ($query) use ($filters) {
                 $query->whereDate('created_at', '<=', $filters['created_to']);
             })
-            ->when(!empty($filters['updated_from']), function ($query) use ($filters) {
+            ->when(! empty($filters['updated_from']), function ($query) use ($filters) {
                 $query->whereDate('updated_at', '>=', $filters['updated_from']);
             })
-            ->when(!empty($filters['updated_to']), function ($query) use ($filters) {
+            ->when(! empty($filters['updated_to']), function ($query) use ($filters) {
                 $query->whereDate('updated_at', '<=', $filters['updated_to']);
             })
             ->orderByDesc('id')
@@ -116,7 +117,7 @@ class DoctorController extends Controller
                 'patient_name' => $result->patient_name,
                 'patient_age' => $result->patient_age,
                 'lab_branch' => $result->lab_branch,
-                'pdf_path' => asset('storage/' . $result->pdf_path),
+                'pdf_path' => asset('storage/'.$result->pdf_path),
                 'doctor_comment' => $result->doctor_comment,
                 'created_at' => $result->created_at?->toIso8601String(),
             ];
@@ -198,13 +199,18 @@ class DoctorController extends Controller
         $conversation->loadMissing(['doctor', 'user']);
 
         $limit = min((int) $request->query('limit', 50), 200);
+        $sinceId = $request->query('since_id');
 
-        $messages = Message::where('conversation_id', $conversation->id)
+        $messagesQuery = Message::where('conversation_id', $conversation->id);
+        if ($sinceId !== null && is_numeric($sinceId)) {
+            $messagesQuery->where('id', '>', (int) $sinceId);
+        }
+
+        $messages = $messagesQuery
             ->orderByDesc('id')
             ->limit($limit)
             ->get()
             ->reverse()
-            ->values()
             ->values();
 
         $replyIds = $messages->pluck('reply_to_id')->filter()->unique()->values();
@@ -213,51 +219,51 @@ class DoctorController extends Controller
             : Message::whereIn('id', $replyIds)->get()->keyBy('id');
 
         $messages = $messages->map(function ($m) use ($conversation, $replyMessages) {
-                $senderName = null;
-                if ($m->sender_type === 'doctor') {
-                    $senderName = $conversation->doctor?->name;
-                } elseif ($m->sender_type === 'user') {
-                    $senderName = $conversation->user?->name;
+            $senderName = null;
+            if ($m->sender_type === 'doctor') {
+                $senderName = $conversation->doctor?->name;
+            } elseif ($m->sender_type === 'user') {
+                $senderName = $conversation->user?->name;
+            }
+
+            $reply = null;
+            if ($m->reply_to_id) {
+                $replyMessage = $replyMessages->get($m->reply_to_id);
+                if ($replyMessage && $replyMessage->conversation_id === $conversation->id) {
+                    $replySenderName = $replyMessage->sender_type === 'doctor'
+                        ? $conversation->doctor?->name
+                        : $conversation->user?->name;
+
+                    $reply = [
+                        'id' => $replyMessage->id,
+                        'sender_type' => $replyMessage->sender_type,
+                        'sender_name' => $replySenderName,
+                        'body' => $replyMessage->body,
+                        'attachment_url' => $replyMessage->attachment_path
+                            ? (str_starts_with($replyMessage->attachment_path, 'http')
+                                ? $replyMessage->attachment_path
+                                : asset('storage/'.$replyMessage->attachment_path))
+                            : null,
+                        'attachment_type' => $replyMessage->attachment_type,
+                        'created_at' => $replyMessage->created_at?->toIso8601String(),
+                        'read_at' => $replyMessage->read_at?->toIso8601String(),
+                    ];
                 }
+            }
 
-                $reply = null;
-                if ($m->reply_to_id) {
-                    $replyMessage = $replyMessages->get($m->reply_to_id);
-                    if ($replyMessage && $replyMessage->conversation_id === $conversation->id) {
-                        $replySenderName = $replyMessage->sender_type === 'doctor'
-                            ? $conversation->doctor?->name
-                            : $conversation->user?->name;
-
-                        $reply = [
-                            'id' => $replyMessage->id,
-                            'sender_type' => $replyMessage->sender_type,
-                            'sender_name' => $replySenderName,
-                            'body' => $replyMessage->body,
-                            'attachment_url' => $replyMessage->attachment_path
-                                ? (str_starts_with($replyMessage->attachment_path, 'http')
-                                    ? $replyMessage->attachment_path
-                                    : asset('storage/' . $replyMessage->attachment_path))
-                                : null,
-                            'attachment_type' => $replyMessage->attachment_type,
-                            'created_at' => $replyMessage->created_at?->toIso8601String(),
-                            'read_at' => $replyMessage->read_at?->toIso8601String(),
-                        ];
-                    }
-                }
-
-                return [
-                    'id' => $m->id,
-                    'sender_type' => $m->sender_type,
-                    'sender_name' => $senderName,
-                    'body' => $m->body,
-                    'attachment_url' => $m->attachment_path ? asset('storage/' . $m->attachment_path) : null,
-                    'attachment_type' => $m->attachment_type,
-                    'reply_to_id' => $m->reply_to_id,
-                    'reply_to' => $reply,
-                    'created_at' => $m->created_at?->toIso8601String(),
-                    'read_at' => $m->read_at?->toIso8601String(),
-                ];
-            });
+            return [
+                'id' => $m->id,
+                'sender_type' => $m->sender_type,
+                'sender_name' => $senderName,
+                'body' => $m->body,
+                'attachment_url' => $m->attachment_path ? asset('storage/'.$m->attachment_path) : null,
+                'attachment_type' => $m->attachment_type,
+                'reply_to_id' => $m->reply_to_id,
+                'reply_to' => $reply,
+                'created_at' => $m->created_at?->toIso8601String(),
+                'read_at' => $m->read_at?->toIso8601String(),
+            ];
+        });
 
         return response()->json(['messages' => $messages]);
     }
@@ -281,16 +287,16 @@ class DoctorController extends Controller
 
         $data = $validator->validated();
 
-        if (!empty($data['reply_to_id'])) {
+        if (! empty($data['reply_to_id'])) {
             $replyMessage = Message::where('id', $data['reply_to_id'])
                 ->where('conversation_id', $conversation->id)
                 ->first();
-            if (!$replyMessage) {
+            if (! $replyMessage) {
                 return response()->json(['message' => 'Invalid reply_to_id'], 422);
             }
         }
 
-        $message = new Message();
+        $message = new Message;
         $message->conversation_id = $conversation->id;
         $message->sender_type = 'doctor';
         $message->sender_id = $doctor->id;
@@ -298,7 +304,7 @@ class DoctorController extends Controller
         $message->reply_to_id = $data['reply_to_id'] ?? null;
 
         // If mobile uploads elsewhere and passes a URL, we store it in attachment_path as-is
-        if (!empty($data['attachment_url'])) {
+        if (! empty($data['attachment_url'])) {
             $message->attachment_path = $data['attachment_url'];
             $message->attachment_type = $data['attachment_type'] ?? null;
         }
@@ -327,6 +333,35 @@ class DoctorController extends Controller
         return response()->json(['ok' => true, 'updated' => $updated]);
     }
 
+    public function deleteMessage(Request $request, Conversation $conversation, Message $message)
+    {
+        $doctor = $request->attributes->get('doctor');
+
+        abort_unless($conversation->doctor_id === $doctor->id, 403);
+
+        if ($message->conversation_id !== $conversation->id) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
+        if ($message->sender_type !== 'doctor' || (int) $message->sender_id !== (int) $doctor->id) {
+            return response()->json(['message' => 'Not allowed'], 403);
+        }
+
+        $message->delete();
+
+        $lastMessage = Message::where('conversation_id', $conversation->id)->orderByDesc('id')->first();
+        if ($lastMessage) {
+            $conversation->last_message_at = $lastMessage->created_at;
+            $conversation->last_message_preview = $lastMessage->body ? mb_substr($lastMessage->body, 0, 200) : 'Attachment';
+        } else {
+            $conversation->last_message_at = null;
+            $conversation->last_message_preview = null;
+        }
+        $conversation->save();
+
+        return response()->json(['ok' => true]);
+    }
+
     public function deleteResult(Request $request, TestResult $result)
     {
         $doctor = $request->attributes->get('doctor');
@@ -348,6 +383,8 @@ class DoctorController extends Controller
             'speciality' => ['nullable', 'string', 'max:255'],
             'experience_level' => ['nullable', 'string', 'max:255'],
             'password' => ['nullable', 'string', 'min:6', 'max:255'],
+            'bio' => ['nullable', 'string', 'max:20000'],
+            'profile_picture' => ['nullable', 'image', 'mimes:jpeg,jpg,png,gif,webp', 'max:5120'],
         ]);
 
         if ($validator->fails()) {
@@ -368,13 +405,33 @@ class DoctorController extends Controller
         if (array_key_exists('experience_level', $data)) {
             $doctor->experience_level = $data['experience_level'];
         }
-        if (!empty($data['password'])) {
+        if (array_key_exists('bio', $data)) {
+            $doctor->bio = $data['bio'];
+        }
+        if (! empty($data['password'])) {
             $doctor->password = Hash::make($data['password']);
+        }
+
+        if ($request->hasFile('profile_picture')) {
+            $uploadDir = public_path('storage/doctors');
+            if (! file_exists($uploadDir)) {
+                mkdir($uploadDir, 0755, true);
+            }
+            if ($doctor->profile_picture_path) {
+                $old = public_path('storage/'.$doctor->profile_picture_path);
+                if (file_exists($old)) {
+                    unlink($old);
+                }
+            }
+            $file = $request->file('profile_picture');
+            $ext = $file->getClientOriginalExtension() ?: 'jpg';
+            $filename = 'profile_'.$doctor->id.'_'.time().'_'.Str::random(8).'.'.$ext;
+            $file->move($uploadDir, $filename);
+            $doctor->profile_picture_path = 'doctors/'.$filename;
         }
 
         $doctor->save();
 
-        return response()->json(['ok' => true]);
+        return response()->json($doctor->fresh());
     }
 }
-

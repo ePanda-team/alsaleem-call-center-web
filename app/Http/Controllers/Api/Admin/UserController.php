@@ -11,7 +11,7 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $query = User::query();
+        $query = User::query()->with('staffRole');
         if ($request->filled('q')) {
             $q = $request->string('q');
             $query->where(function ($sub) use ($q) {
@@ -30,6 +30,8 @@ class UserController extends Controller
 
     public function show(User $user)
     {
+        $user->loadMissing('staffRole');
+
         return response()->json($user);
     }
 
@@ -40,6 +42,7 @@ class UserController extends Controller
             'email' => ['required', 'unique:users,email'],
             'password' => ['required', 'string', 'min:6'],
             'role' => ['required', 'in:admin,supervisor,agent'],
+            'role_id' => ['nullable', 'integer', 'exists:roles,id'],
             'branch_assignment' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -57,9 +60,10 @@ class UserController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'unique:users,email,' . $user->id],
+            'email' => ['required', 'unique:users,email,'.$user->id],
             'password' => ['nullable', 'string', 'min:6'],
             'role' => ['required', 'in:admin,supervisor,agent'],
+            'role_id' => ['nullable', 'integer', 'exists:roles,id'],
             'branch_assignment' => ['nullable', 'string', 'max:255'],
         ]);
 
@@ -85,4 +89,3 @@ class UserController extends Controller
         return response()->json(['ok' => true]);
     }
 }
-

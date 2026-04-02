@@ -25,7 +25,30 @@ class DoctorController extends Controller
             $query->where('experience_level', $request->string('experience'));
         }
 
-        $doctors = $query->orderByDesc('id')->paginate(20)->appends($request->query());
+        $query->withCount([
+            'messages as unread_messages_count' => function ($q) {
+                $q->where('messages.sender_type', 'doctor')->whereNull('messages.read_at');
+            },
+        ]);
+
+        $query->addSelect([
+            'last_message_at' => Conversation::query()
+                ->select('last_message_at')
+                ->whereColumn('conversations.doctor_id', 'doctors.id')
+                ->limit(1),
+        ]);
+
+        if ($request->query('sort') === 'latest_message') {
+            $query->orderByRaw(
+                '(select max(`last_message_at`) from `conversations` where `conversations`.`doctor_id` = `doctors`.`id`) is null asc'
+            )->orderByRaw(
+                '(select max(`last_message_at`) from `conversations` where `conversations`.`doctor_id` = `doctors`.`id`) desc'
+            )->orderByDesc('doctors.id');
+        } else {
+            $query->orderByDesc('doctors.id');
+        }
+
+        $doctors = $query->paginate(20)->appends($request->query());
 
         return response()->json($doctors);
     }
@@ -61,7 +84,7 @@ class DoctorController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'name' => ['required', 'string', 'max:255'],
-            'username' => ['required', 'string', 'max:255', 'unique:doctors,username,' . $doctor->id],
+            'username' => ['required', 'string', 'max:255', 'unique:doctors,username,'.$doctor->id],
             'speciality' => ['nullable', 'string', 'max:255'],
             'experience_level' => ['required', 'in:specialist,doctor,consultant'],
             'phone' => ['nullable', 'string', 'max:255'],
@@ -90,4 +113,3 @@ class DoctorController extends Controller
         return response()->json(['ok' => true]);
     }
 }
-
