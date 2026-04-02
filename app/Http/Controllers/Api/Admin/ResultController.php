@@ -37,12 +37,20 @@ class ResultController extends Controller
 
         $results = $query->orderByDesc('id')->paginate(20)->appends($request->query());
 
+        $results->getCollection()->transform(function (TestResult $result) {
+            $result->setAttribute('pdf_path', $this->publicPdfUrl($result->getRawOriginal('pdf_path') ?? $result->pdf_path));
+
+            return $result;
+        });
+
         return response()->json($results);
     }
 
     public function show(TestResult $result)
     {
         $result->load('doctor');
+        $result->setAttribute('pdf_path', $this->publicPdfUrl($result->getRawOriginal('pdf_path') ?? $result->pdf_path));
+
         return response()->json($result);
     }
 
@@ -85,6 +93,8 @@ class ResultController extends Controller
             $notificationService = new NotificationService();
             $notificationService->sendNewResultNotification($doctor, $testResult);
         }
+
+        $testResult->setAttribute('pdf_path', $this->publicPdfUrl($testResult->pdf_path));
 
         return response()->json($testResult, 201);
     }
@@ -129,6 +139,9 @@ class ResultController extends Controller
         $result->doctor_id = $data['doctor_id'];
         $result->save();
 
+        $result->load('doctor');
+        $result->setAttribute('pdf_path', $this->publicPdfUrl($result->getRawOriginal('pdf_path') ?? $result->pdf_path));
+
         return response()->json($result);
     }
 
@@ -137,6 +150,18 @@ class ResultController extends Controller
         $result->delete();
 
         return response()->json(['ok' => true]);
+    }
+
+    private function publicPdfUrl(?string $path): ?string
+    {
+        if ($path === null || $path === '') {
+            return null;
+        }
+        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+            return $path;
+        }
+
+        return asset('storage/'.$path);
     }
 }
 
