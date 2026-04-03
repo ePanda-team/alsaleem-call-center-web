@@ -30,6 +30,7 @@ class SliderController extends Controller
             'title' => ['nullable', 'string', 'max:255'],
             'image' => ['required', 'image'],
             'position' => ['nullable', 'integer', 'min:0'],
+            'url' => ['nullable', 'string'],
         ]);
 
         if ($validator->fails()) {
@@ -50,6 +51,7 @@ class SliderController extends Controller
             'title' => $data['title'] ?? null,
             'image_path' => $path,
             'position' => $data['position'] ?? 0,
+            'url' => $data['url'] ?? null,
         ]);
 
         return response()->json($slider, 201);
@@ -61,6 +63,7 @@ class SliderController extends Controller
             'title' => ['nullable', 'string', 'max:255'],
             'image' => ['nullable', 'image'],
             'position' => ['nullable', 'integer', 'min:0'],
+            'url' => ['nullable', 'string'],
         ]);
 
         if ($validator->fails()) {
@@ -86,6 +89,7 @@ class SliderController extends Controller
         }
 
         $slider->title = $data['title'] ?? null;
+        $slider->url = $data['url'] ?? null;
         if (isset($data['position'])) {
             $slider->position = $data['position'];
         }

@@ -17,8 +17,9 @@ class PublicController extends Controller
                 return [
                     'id' => $s->id,
                     'title' => $s->title,
-                    'image_url' => asset('storage/' . $s->image_path),
+                    'image_url' => asset('storage/'.$s->image_path),
                     'position' => $s->position,
+                    'url' => $s->url,
                 ];
             });
 
@@ -32,4 +33,3 @@ class PublicController extends Controller
         return response()->json($tests);
     }
 }
-
