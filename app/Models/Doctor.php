@@ -4,12 +4,23 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class Doctor extends Authenticatable
 {
     use HasFactory, Notifiable;
+
+    protected static function booted(): void
+    {
+        static::created(function (Doctor $doctor) {
+            DoctorLabCatalogSeen::query()->firstOrCreate(
+                ['doctor_id' => $doctor->id],
+                ['seen_at' => now()]
+            );
+        });
+    }
 
     protected $fillable = [
         'name',
@@ -67,5 +78,10 @@ class Doctor extends Authenticatable
     public function doctorAccessTokens(): HasMany
     {
         return $this->hasMany(DoctorAccessToken::class);
+    }
+
+    public function labCatalogSeen(): HasOne
+    {
+        return $this->hasOne(DoctorLabCatalogSeen::class);
     }
 }

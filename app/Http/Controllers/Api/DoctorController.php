@@ -4,11 +4,14 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Announcement;
-use App\Models\AnnouncementView;
 use App\Models\Conversation;
+use App\Models\Doctor;
+use App\Models\DoctorLabCatalogSeen;
+use App\Models\LabTest;
 use App\Models\Message;
 use App\Models\TestResult;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
@@ -53,6 +56,63 @@ class DoctorController extends Controller
         return response()->json(['conversation_id' => $conversation->id]);
     }
 
+    public function unseenSummary(Request $request)
+    {
+        $doctor = $request->attributes->get('doctor');
+
+        $conversation = Conversation::where('doctor_id', $doctor->id)->first();
+        $messagesCount = 0;
+        if ($conversation) {
+            $messagesCount = Message::query()
+                ->where('conversation_id', $conversation->id)
+                ->where('sender_type', 'user')
+                ->whereNull('read_at')
+                ->count();
+        }
+
+        $announcementsCount = Announcement::query()
+            ->visibleToDoctor($doctor)
+            ->whereDoesntHave('views', function ($q) use ($doctor) {
+                $q->where('doctor_id', $doctor->id);
+            })
+            ->count();
+
+        $resultsCount = TestResult::query()
+            ->where('doctor_id', $doctor->id)
+            ->whereDoesntHave('doctorViews', function ($q) use ($doctor) {
+                $q->where('doctor_id', $doctor->id);
+            })
+            ->count();
+
+        $labSeen = DoctorLabCatalogSeen::query()->firstOrCreate(
+            ['doctor_id' => $doctor->id],
+            ['seen_at' => now()]
+        );
+        $testsCount = LabTest::query()->where('updated_at', '>', $labSeen->seen_at)->count();
+
+        $hasUnseen = $messagesCount > 0 || $announcementsCount > 0 || $resultsCount > 0 || $testsCount > 0;
+
+        return response()->json([
+            'has_unseen' => $hasUnseen,
+            'messages' => [
+                'unseen' => $messagesCount > 0,
+                'count' => $messagesCount,
+            ],
+            'announcements' => [
+                'unseen' => $announcementsCount > 0,
+                'count' => $announcementsCount,
+            ],
+            'results' => [
+                'unseen' => $resultsCount > 0,
+                'count' => $resultsCount,
+            ],
+            'tests' => [
+                'unseen' => $testsCount > 0,
+                'count' => $testsCount,
+            ],
+        ]);
+    }
+
     public function results(Request $request)
     {
         $doctor = $request->attributes->get('doctor');
@@ -76,7 +136,7 @@ class DoctorController extends Controller
 
         $filters = $validator->validated();
 
-        $results = TestResult::query()
+        $baseQuery = TestResult::query()
             ->where('doctor_id', $doctor->id)
             ->when(isset($filters['id']), function ($query) use ($filters) {
                 $query->where('id', $filters['id']);
@@ -107,7 +167,11 @@ class DoctorController extends Controller
             })
             ->when(! empty($filters['updated_to']), function ($query) use ($filters) {
                 $query->whereDate('updated_at', '<=', $filters['updated_to']);
-            })
+            });
+
+        $this->markTestResultViewsForDoctor($doctor->id, (clone $baseQuery)->pluck('id'));
+
+        $results = (clone $baseQuery)
             ->orderByDesc('id')
             ->paginate(50);
 
@@ -132,41 +196,35 @@ class DoctorController extends Controller
     {
         $doctor = $request->attributes->get('doctor');
 
-        // Filter announcements based on targeting
-        $query = Announcement::query();
+        $this->markVisibleAnnouncementsViewedForDoctor($doctor);
 
-        // Apply specialty targeting
-        $query->where(function ($q) use ($doctor) {
-            $q->whereNull('target_specialties')
-                ->orWhereJsonContains('target_specialties', $doctor->speciality);
-        });
+        $items = Announcement::query()
+            ->visibleToDoctor($doctor)
+            ->orderByDesc('id')
+            ->paginate(20);
 
-        // Apply experience level targeting
-        $query->where(function ($q) use ($doctor) {
-            $q->whereNull('target_experience_levels')
-                ->orWhereJsonContains('target_experience_levels', $doctor->experience_level);
-        });
-
-        $items = $query->orderByDesc('id')->paginate(20);
-
-        // Track views for all announcements in this request and replace [dr] placeholder
         foreach ($items->items() as $announcement) {
-            AnnouncementView::updateOrCreate(
-                [
-                    'announcement_id' => $announcement->id,
-                    'doctor_id' => $doctor->id,
-                ],
-                [
-                    'viewed_at' => now(),
-                ]
-            );
-
-            // Replace [dr] placeholder with doctor's name
             $announcement->title = str_replace('[dr]', $doctor->name, $announcement->title);
             $announcement->body = str_replace('[dr]', $doctor->name, $announcement->body);
         }
 
         return response()->json($items);
+    }
+
+    public function labTests()
+    {
+        $doctor = request()->attributes->get('doctor');
+
+        $seen = DoctorLabCatalogSeen::query()->firstOrCreate(
+            ['doctor_id' => $doctor->id],
+            ['seen_at' => now()]
+        );
+        $seen->seen_at = now();
+        $seen->save();
+
+        $tests = LabTest::orderBy('name')->get(['id', 'name', 'description']);
+
+        return response()->json($tests);
     }
 
     public function commentResult(Request $request, TestResult $result)
@@ -276,7 +334,7 @@ class DoctorController extends Controller
 
         $validator = Validator::make($request->all(), [
             'body' => ['nullable', 'string'],
-            'attachment_url' => ['nullable', 'url'],
+            'attachment_url' => ['nullable'],
             'attachment_type' => ['nullable', 'in:voice,document,image,video'],
             'reply_to_id' => ['nullable', 'integer', 'min:1'],
         ]);
@@ -433,5 +491,55 @@ class DoctorController extends Controller
         $doctor->save();
 
         return response()->json($doctor->fresh());
+    }
+
+    private function markVisibleAnnouncementsViewedForDoctor(Doctor $doctor): void
+    {
+        $ids = Announcement::query()->visibleToDoctor($doctor)->pluck('id');
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $now = now();
+        $rows = $ids->map(fn ($id) => [
+            'announcement_id' => $id,
+            'doctor_id' => $doctor->id,
+            'viewed_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all();
+
+        foreach (array_chunk($rows, 500) as $chunk) {
+            DB::table('announcement_views')->upsert(
+                $chunk,
+                ['announcement_id', 'doctor_id'],
+                ['viewed_at', 'updated_at']
+            );
+        }
+    }
+
+    private function markTestResultViewsForDoctor(int $doctorId, $testResultIds): void
+    {
+        $ids = collect($testResultIds)->filter()->unique()->values();
+        if ($ids->isEmpty()) {
+            return;
+        }
+
+        $now = now();
+        $rows = $ids->map(fn ($id) => [
+            'doctor_id' => $doctorId,
+            'test_result_id' => $id,
+            'viewed_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all();
+
+        foreach (array_chunk($rows, 500) as $chunk) {
+            DB::table('test_result_doctor_views')->upsert(
+                $chunk,
+                ['doctor_id', 'test_result_id'],
+                ['viewed_at', 'updated_at']
+            );
+        }
     }
 }

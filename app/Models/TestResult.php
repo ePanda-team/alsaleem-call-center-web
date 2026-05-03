@@ -25,6 +25,9 @@ class TestResult extends Model
     {
         return $this->belongsTo(Doctor::class);
     }
+
+    public function doctorViews()
+    {
+        return $this->hasMany(TestResultDoctorView::class);
+    }
 }
-
-

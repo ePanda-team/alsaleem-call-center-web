@@ -41,7 +41,6 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'unique:users,email'],
             'password' => ['required', 'string', 'min:6'],
-            'role' => ['required', 'in:admin,supervisor,agent'],
             'role_id' => ['nullable', 'integer', 'exists:roles,id'],
             'branch_assignment' => ['nullable', 'string', 'max:255'],
         ]);
@@ -62,7 +61,6 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'unique:users,email,'.$user->id],
             'password' => ['nullable', 'string', 'min:6'],
-            'role' => ['required', 'in:admin,supervisor,agent'],
             'role_id' => ['nullable', 'integer', 'exists:roles,id'],
             'branch_assignment' => ['nullable', 'string', 'max:255'],
         ]);

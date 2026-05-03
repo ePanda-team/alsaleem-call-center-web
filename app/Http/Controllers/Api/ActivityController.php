@@ -107,7 +107,12 @@ class ActivityController extends Controller
         $limit = min((int) $request->query('limit', 50), 200);
         $sinceId = $request->query('since_id');
 
-        $messagesQuery = Message::withTrashed()->where('conversation_id', $conversation->id);
+        $messagesQuery = Message::withTrashed()
+            ->where('conversation_id', $conversation->id)
+            ->where(function ($q) {
+                $q->whereNull('deleted_at')
+                    ->orWhere('sender_type', 'doctor');
+            });
         if ($sinceId !== null && is_numeric($sinceId)) {
             $messagesQuery->where('id', '>', (int) $sinceId);
         }
@@ -160,16 +165,23 @@ class ActivityController extends Controller
                         ? $conversation->doctor?->name
                         : ($usersById->get($replyMessage->sender_id)?->name ?? $conversation->user?->name);
 
+                    $replyBody = $replyMessage->body;
+                    $replyAttachmentUrl = $replyMessage->attachment_path
+                        ? (str_starts_with($replyMessage->attachment_path, 'http')
+                            ? $replyMessage->attachment_path
+                            : asset('storage/'.$replyMessage->attachment_path))
+                        : null;
+                    if ($replyMessage->sender_type === 'user' && $replyMessage->trashed()) {
+                        $replyBody = null;
+                        $replyAttachmentUrl = null;
+                    }
+
                     $reply = [
                         'id' => $replyMessage->id,
                         'sender_type' => $replyMessage->sender_type,
                         'sender_name' => $replySenderName,
-                        'body' => $replyMessage->body,
-                        'attachment_url' => $replyMessage->attachment_path
-                            ? (str_starts_with($replyMessage->attachment_path, 'http')
-                                ? $replyMessage->attachment_path
-                                : asset('storage/'.$replyMessage->attachment_path))
-                            : null,
+                        'body' => $replyBody,
+                        'attachment_url' => $replyAttachmentUrl,
                         'attachment_type' => $replyMessage->attachment_type,
                         'created_at' => $replyMessage->created_at?->toIso8601String(),
                         'read_at' => $replyMessage->read_at?->toIso8601String(),
@@ -177,12 +189,18 @@ class ActivityController extends Controller
                 }
             }
 
+            $body = $m->body;
+            if ($m->sender_type === 'user' && $m->trashed()) {
+                $body = null;
+                $attachmentUrl = null;
+            }
+
             return [
                 'id' => $m->id,
                 'sender_type' => $m->sender_type,
                 'sender_id' => $m->sender_id,
                 'sender_name' => $senderName,
-                'body' => $m->body,
+                'body' => $body,
                 'attachment_url' => $attachmentUrl,
                 'attachment_type' => $m->attachment_type,
                 'reply_to_id' => $m->reply_to_id,

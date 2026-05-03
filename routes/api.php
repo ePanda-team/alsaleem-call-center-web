@@ -28,8 +28,10 @@ Route::middleware('doctor.token')->group(function () {
     Route::get('doctor/me', [DoctorController::class, 'me']);
     Route::post('doctor/fcm-token', [DoctorController::class, 'updateFcmToken']);
     Route::get('doctor/conversation', [DoctorController::class, 'conversation']);
+    Route::get('doctor/unseen-summary', [DoctorController::class, 'unseenSummary']);
     Route::get('doctor/results', [DoctorController::class, 'results']);
     Route::get('doctor/announcements', [DoctorController::class, 'announcements']);
+    Route::get('doctor/lab-tests', [DoctorController::class, 'labTests']);
     Route::match(['put', 'post'], 'doctor/me', [DoctorController::class, 'updateProfile']);
     Route::match(['delete', 'post'], 'doctor/results/{result}', [DoctorController::class, 'deleteResult']);
     Route::post('doctor/results/{result}/comment', [DoctorController::class, 'commentResult']);
