@@ -13,14 +13,16 @@ Each role has a `permissions` object. Every key is a **boolean**. Keys are fixed
 | Key | Typical meaning (for your UI) |
 |-----|--------------------------------|
 | `chatting` | Staff chat / activity with doctors |
-| `patient_results` | Lab results (patient results) |
+| `patient_results` | Lab test **results** upload/list workflow |
+| `patient_management` | Staff **patients** list and detail (`GET /api/patients`, filters) |
 | `user_management` | Staff user CRUD |
 | `roles_management` | Create/edit/delete **roles** (staff role definitions). **Effective value is only `true` for `user.role === "admin"`**; it is always `false` for supervisor and agent even if stored on a role record. |
 | `doctor_management` | Doctor CRUD |
 | `specialties_management` | Specialties CRUD |
 | `announcement_management` | Announcements CRUD |
 | `slider_management` | Sliders CRUD |
-| `lab_tests_management` | Lab tests CRUD |
+| `lab_tests_management` | Lab tests **catalog** CRUD (`/api/admin/lab-tests`) |
+| `lab_test_requests_management` | Doctor-submitted lab test **requests** (`GET/PATCH /api/lab-test-requests`) |
 | `branch_management` | Lab branches CRUD |
 
 ---
@@ -66,6 +68,7 @@ Response includes the staff user and merged **`permissions`** (effective, with t
     "permissions": {
       "chatting": true,
       "patient_results": true,
+      "patient_management": true,
       "user_management": true,
       "roles_management": true,
       "doctor_management": true,
@@ -73,6 +76,7 @@ Response includes the staff user and merged **`permissions`** (effective, with t
       "announcement_management": true,
       "slider_management": true,
       "lab_tests_management": true,
+      "lab_test_requests_management": true,
       "branch_management": true
     }
   }
@@ -116,6 +120,7 @@ Body (JSON):
   "permissions": {
     "chatting": true,
     "patient_results": true,
+    "patient_management": true,
     "user_management": false,
     "roles_management": false,
     "doctor_management": false,
@@ -123,6 +128,7 @@ Body (JSON):
     "announcement_management": false,
     "slider_management": false,
     "lab_tests_management": false,
+    "lab_test_requests_management": false,
     "branch_management": false
   }
 }
@@ -166,7 +172,7 @@ Staff users are still created/updated via **`/api/admin/users`** (`UserControlle
 |------|--------|
 | `admin` | All permissions `true` |
 | `supervisor` | All `true` except `user_management` and `roles_management` |
-| `agent` | Only `chatting` and `patient_results` `true` |
+| `agent` | `chatting`, `patient_results`, and `patient_management` `true`; all other keys `false` |
 
 `DatabaseSeeder` also sets `role_id` on the default admin user and backfills `role_id` for any staff with `role_id` null where a matching slug exists.
 

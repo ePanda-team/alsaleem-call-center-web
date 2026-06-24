@@ -12,8 +12,13 @@ use App\Http\Controllers\Api\Admin\SpecialtyController as AdminSpecialtyControll
 use App\Http\Controllers\Api\Admin\UserController as AdminUserController;
 use App\Http\Controllers\Api\DoctorAuthController;
 use App\Http\Controllers\Api\DoctorController;
+use App\Http\Controllers\Api\LabTestRequestController;
+use App\Http\Controllers\Api\PatientController;
 use App\Http\Controllers\Api\PublicController;
 use App\Http\Controllers\Api\StaffAuthController;
+use App\Http\Controllers\Api\StaffNotificationController;
+use App\Http\Controllers\Api\TestResultCommentController;
+use App\Http\Controllers\Api\TestResultPdfController;
 use App\Http\Controllers\FileUploadController;
 use Illuminate\Support\Facades\Route;
 
@@ -29,12 +34,20 @@ Route::middleware('doctor.token')->group(function () {
     Route::post('doctor/fcm-token', [DoctorController::class, 'updateFcmToken']);
     Route::get('doctor/conversation', [DoctorController::class, 'conversation']);
     Route::get('doctor/unseen-summary', [DoctorController::class, 'unseenSummary']);
+    Route::get('doctor/patients', [DoctorController::class, 'patients']);
+    Route::get('doctor/patients/{patient}', [DoctorController::class, 'showPatient']);
+    Route::get('doctor/patients/{patient}/results', [DoctorController::class, 'patientResults']);
     Route::get('doctor/results', [DoctorController::class, 'results']);
+    Route::get('doctor/results/{result}/pdf', [TestResultPdfController::class, 'doctorShow']);
+    Route::get('doctor/results/{result}/comments', [DoctorController::class, 'resultComments']);
+    Route::post('doctor/results/{result}/comments', [DoctorController::class, 'storeResultComment']);
     Route::get('doctor/announcements', [DoctorController::class, 'announcements']);
     Route::get('doctor/lab-tests', [DoctorController::class, 'labTests']);
+    Route::get('doctor/lab-test-requests', [DoctorController::class, 'labTestRequests']);
+    Route::post('doctor/lab-test-requests', [DoctorController::class, 'storeLabTestRequest']);
+    Route::get('doctor/lab-test-requests/{labTestRequest}', [DoctorController::class, 'showLabTestRequest']);
     Route::match(['put', 'post'], 'doctor/me', [DoctorController::class, 'updateProfile']);
     Route::match(['delete', 'post'], 'doctor/results/{result}', [DoctorController::class, 'deleteResult']);
-    Route::post('doctor/results/{result}/comment', [DoctorController::class, 'commentResult']);
     Route::get('doctor/conversations/{conversation}/messages', [DoctorController::class, 'messages']);
     Route::post('doctor/conversations/{conversation}/messages', [DoctorController::class, 'sendMessage']);
     Route::post('doctor/conversations/{conversation}/messages/read', [DoctorController::class, 'markMessagesRead']);
@@ -56,6 +69,17 @@ Route::middleware(['staff.token'])->prefix('admin')->group(function () {
 
 // Results API for staff (admin, supervisor, agent)
 Route::middleware(['staff.token'])->group(function () {
+    Route::get('patients', [PatientController::class, 'index']);
+    Route::get('patients/{patient}', [PatientController::class, 'show']);
+    Route::get('patients/{patient}/results', [PatientController::class, 'results']);
+    Route::apiResource('lab-test-requests', LabTestRequestController::class)->only(['index', 'show', 'update']);
+    Route::get('notifications/unread-count', [StaffNotificationController::class, 'unreadCount']);
+    Route::post('notifications/read-all', [StaffNotificationController::class, 'markAllRead']);
+    Route::get('notifications', [StaffNotificationController::class, 'index']);
+    Route::post('notifications/{notification}/read', [StaffNotificationController::class, 'markRead']);
+    Route::get('results/{result}/comments', [TestResultCommentController::class, 'index']);
+    Route::post('results/{result}/comments', [TestResultCommentController::class, 'store']);
+    Route::get('results/{result}/pdf', [TestResultPdfController::class, 'staffShow']);
     Route::apiResource('results', AdminResultController::class)->parameters(['results' => 'result']);
 });
 

@@ -8,16 +8,28 @@ use App\Models\Conversation;
 use App\Models\Doctor;
 use App\Models\DoctorLabCatalogSeen;
 use App\Models\LabTest;
+use App\Models\LabTestRequest;
 use App\Models\Message;
+use App\Models\Patient;
 use App\Models\TestResult;
+use App\Models\TestResultComment;
+use App\Models\TestResultDoctorView;
+use App\Services\StaffNotificationService;
+use App\Services\TestResultPdfStorage;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 
 class DoctorController extends Controller
 {
+    public function __construct(
+        private TestResultPdfStorage $pdfStorage
+    ) {}
+
     public function me(Request $request)
     {
         $doctor = $request->attributes->get('doctor');
@@ -78,10 +90,7 @@ class DoctorController extends Controller
             ->count();
 
         $resultsCount = TestResult::query()
-            ->where('doctor_id', $doctor->id)
-            ->whereDoesntHave('doctorViews', function ($q) use ($doctor) {
-                $q->where('doctor_id', $doctor->id);
-            })
+            ->unseenForDoctor($doctor->id)
             ->count();
 
         $labSeen = DoctorLabCatalogSeen::query()->firstOrCreate(
@@ -123,7 +132,7 @@ class DoctorController extends Controller
             'patient_age' => ['nullable', 'integer', 'min:0', 'max:150'],
             'hospital' => ['nullable', 'string', 'max:255'],
             'lab_branch' => ['nullable', 'string', 'max:255'],
-            'doctor_comment' => ['nullable', 'string'],
+            'has_comments' => ['nullable', 'boolean'],
             'created_from' => ['nullable', 'date'],
             'created_to' => ['nullable', 'date'],
             'updated_from' => ['nullable', 'date'],
@@ -136,16 +145,20 @@ class DoctorController extends Controller
 
         $filters = $validator->validated();
 
-        $baseQuery = TestResult::query()
-            ->where('doctor_id', $doctor->id)
+        $baseQuery = $this->doctorResultsBaseQuery($doctor->id)
             ->when(isset($filters['id']), function ($query) use ($filters) {
                 $query->where('id', $filters['id']);
             })
             ->when(! empty($filters['patient_name']), function ($query) use ($filters) {
-                $query->where('patient_name', 'like', '%'.$filters['patient_name'].'%');
+                $query->whereHas('patient', function ($patientQuery) use ($filters) {
+                    $patientQuery->where('name', 'like', '%'.$filters['patient_name'].'%');
+                });
             })
             ->when(isset($filters['patient_age']), function ($query) use ($filters) {
-                $query->where('patient_age', $filters['patient_age']);
+                $birthYear = Patient::birthYearFromAge((int) $filters['patient_age']);
+                $query->whereHas('patient', function ($patientQuery) use ($birthYear) {
+                    $patientQuery->where('birth_year', $birthYear);
+                });
             })
             ->when(! empty($filters['hospital']), function ($query) use ($filters) {
                 $query->where('hospital', 'like', '%'.$filters['hospital'].'%');
@@ -153,8 +166,8 @@ class DoctorController extends Controller
             ->when(! empty($filters['lab_branch']), function ($query) use ($filters) {
                 $query->where('lab_branch', 'like', '%'.$filters['lab_branch'].'%');
             })
-            ->when(! empty($filters['doctor_comment']), function ($query) use ($filters) {
-                $query->where('doctor_comment', 'like', '%'.$filters['doctor_comment'].'%');
+            ->when(! empty($filters['has_comments']), function ($query) use ($doctor) {
+                $query->whereHasUnseenStaffCommentsForDoctor($doctor->id);
             })
             ->when(! empty($filters['created_from']), function ($query) use ($filters) {
                 $query->whereDate('created_at', '>=', $filters['created_from']);
@@ -175,21 +188,153 @@ class DoctorController extends Controller
             ->orderByDesc('id')
             ->paginate(50);
 
+        $this->attachLatestUnseenStaffComments($results->getCollection());
+
         $results->getCollection()->transform(function ($result) {
-            return [
-                'id' => $result->id,
-                'patient_name' => $result->patient_name,
-                'patient_age' => $result->patient_age,
-                'lab_branch' => $result->lab_branch,
-                'pdf_path' => asset('storage/'.$result->pdf_path),
-                'doctor_comment' => $result->doctor_comment,
-                'created_at' => $result->created_at?->toIso8601String(),
-            ];
+            return $this->formatDoctorResultItem($result);
         });
 
         $results->appends($request->query());
 
         return response()->json($results);
+    }
+
+    public function patients(Request $request)
+    {
+        $doctor = $request->attributes->get('doctor');
+
+        $validator = Validator::make($request->all(), Patient::listFilterValidationRules());
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $filters = $validator->validated();
+
+        $query = Patient::query()
+            ->whereHas('testResults', function ($resultQuery) use ($doctor, $filters) {
+                Patient::applyTestResultFiltersForPatientList($resultQuery, $filters, $doctor->id);
+            })
+            ->applyListAttributeFilters($filters)
+            ->withUnseenResultsCountForDoctor($doctor->id);
+
+        $patients = $query->orderByDesc('id')->paginate(20)->appends($request->query());
+
+        $patients->getCollection()->transform(function ($patient) {
+            return $this->formatDoctorPatientItem($patient);
+        });
+
+        return response()->json($patients);
+    }
+
+    public function showPatient(Request $request, Patient $patient)
+    {
+        $doctor = $request->attributes->get('doctor');
+
+        $hasResults = TestResult::query()
+            ->where('doctor_id', $doctor->id)
+            ->where('patient_id', $patient->id)
+            ->exists();
+
+        abort_unless($hasResults, 404);
+
+        $patient->loadCount([
+            'testResults as unseen_results_count' => function ($resultQuery) use ($doctor) {
+                $resultQuery->unseenForDoctor($doctor->id);
+            },
+        ]);
+
+        return response()->json($this->formatDoctorPatientItem($patient));
+    }
+
+    public function patientResults(Request $request, Patient $patient)
+    {
+        $doctor = $request->attributes->get('doctor');
+
+        abort_unless(
+            TestResult::query()->where('doctor_id', $doctor->id)->where('patient_id', $patient->id)->exists(),
+            404
+        );
+
+        $baseQuery = $this->doctorResultsBaseQuery($doctor->id)
+            ->where('patient_id', $patient->id);
+
+        $this->markTestResultViewsForDoctor($doctor->id, (clone $baseQuery)->pluck('id'));
+
+        $results = (clone $baseQuery)->orderByDesc('id')->paginate(50)->appends($request->query());
+
+        $this->attachLatestUnseenStaffComments($results->getCollection());
+
+        $results->getCollection()->transform(function ($result) {
+            return $this->formatDoctorResultItem($result);
+        });
+
+        return response()->json($results);
+    }
+
+    public function resultComments(Request $request, TestResult $result)
+    {
+        $doctor = $request->attributes->get('doctor');
+
+        abort_unless($result->doctor_id === $doctor->id, 403);
+
+        $this->markCommentsSeenForDoctor($doctor->id, $result->id);
+
+        $comments = TestResultComment::query()
+            ->where('test_result_id', $result->id)
+            ->orderBy('created_at')
+            ->paginate(50)
+            ->appends($request->query());
+
+        $comments->setCollection(
+            $comments->getCollection()->tap(fn ($items) => TestResultComment::hydrateAuthorNames($items))
+        );
+
+        $comments->getCollection()->transform(
+            fn (TestResultComment $comment) => $comment->toApiArray()
+        );
+
+        return response()->json($comments);
+    }
+
+    public function storeResultComment(Request $request, TestResult $result)
+    {
+        $doctor = $request->attributes->get('doctor');
+
+        abort_unless($result->doctor_id === $doctor->id, 403);
+
+        $validator = Validator::make($request->all(), [
+            'body' => ['required', 'string', 'min:1', 'max:20000'],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $comment = TestResultComment::query()->create([
+            'test_result_id' => $result->id,
+            'author_type' => TestResultComment::AUTHOR_DOCTOR,
+            'author_id' => $doctor->id,
+            'body' => $validator->validated()['body'],
+        ]);
+
+        $comment->setAttribute('author_name', $doctor->name);
+        $result->loadMissing('patient');
+
+        $this->staffNotifications()->notifyDoctorAction(
+            'doctor_result_comment',
+            $doctor,
+            [
+                'route' => 'result',
+                'result_id' => $result->id,
+                'entity_id' => $result->id,
+                'comment_id' => $comment->id,
+                'patient_id' => $result->patient_id,
+                'patient_name' => $result->patient?->name,
+            ]
+        );
+
+        return response()->json($comment->toApiArray(), 201);
     }
 
     public function announcements(Request $request)
@@ -201,7 +346,8 @@ class DoctorController extends Controller
         $items = Announcement::query()
             ->visibleToDoctor($doctor)
             ->orderByDesc('id')
-            ->paginate(20);
+            ->paginate(20)
+            ->appends($request->query());
 
         foreach ($items->items() as $announcement) {
             $announcement->title = str_replace('[dr]', $doctor->name, $announcement->title);
@@ -211,30 +357,79 @@ class DoctorController extends Controller
         return response()->json($items);
     }
 
-    public function labTests()
+    public function labTests(Request $request)
     {
-        $doctor = request()->attributes->get('doctor');
+        $doctor = $request->attributes->get('doctor');
 
-        $seen = DoctorLabCatalogSeen::query()->firstOrCreate(
-            ['doctor_id' => $doctor->id],
-            ['seen_at' => now()]
-        );
-        $seen->seen_at = now();
-        $seen->save();
+        $page = max(1, (int) $request->query('page', 1));
+        if ($page <= 1) {
+            $seen = DoctorLabCatalogSeen::query()->firstOrCreate(
+                ['doctor_id' => $doctor->id],
+                ['seen_at' => now()]
+            );
+            $seen->seen_at = now();
+            $seen->save();
+        }
 
-        $tests = LabTest::orderBy('name')->get(['id', 'name', 'description']);
+        $tests = LabTest::query()
+            ->orderBy('name')
+            ->paginate(50, ['id', 'name', 'description'])
+            ->appends($request->query());
 
         return response()->json($tests);
     }
 
-    public function commentResult(Request $request, TestResult $result)
+    public function labTestRequests(Request $request)
     {
         $doctor = $request->attributes->get('doctor');
 
-        abort_unless($result->doctor_id === $doctor->id, 403);
+        $validator = Validator::make($request->all(), [
+            'status' => ['nullable', 'string', Rule::in(LabTestRequest::STATUSES)],
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
+
+        $filters = $validator->validated();
+
+        $query = LabTestRequest::query()
+            ->with('items')
+            ->where('doctor_id', $doctor->id)
+            ->when(! empty($filters['status']), function ($q) use ($filters) {
+                $q->where('status', $filters['status']);
+            })
+            ->orderByDesc('id');
+
+        $requests = $query->paginate(20)->appends($request->query());
+
+        $requests->getCollection()->transform(function ($labTestRequest) {
+            return $this->formatDoctorLabTestRequestItem($labTestRequest);
+        });
+
+        return response()->json($requests);
+    }
+
+    public function showLabTestRequest(Request $request, LabTestRequest $labTestRequest)
+    {
+        $doctor = $request->attributes->get('doctor');
+
+        abort_unless($labTestRequest->doctor_id === $doctor->id, 404);
+
+        $labTestRequest->load('items');
+
+        return response()->json($this->formatDoctorLabTestRequestItem($labTestRequest));
+    }
+
+    public function storeLabTestRequest(Request $request)
+    {
+        $doctor = $request->attributes->get('doctor');
 
         $validator = Validator::make($request->all(), [
-            'doctor_comment' => ['nullable', 'string'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+            'tests' => ['required', 'array', 'min:1'],
+            'tests.*.name' => ['required', 'string', 'max:255'],
+            'tests.*.description' => ['nullable', 'string', 'max:5000'],
         ]);
 
         if ($validator->fails()) {
@@ -242,10 +437,33 @@ class DoctorController extends Controller
         }
 
         $data = $validator->validated();
-        $result->doctor_comment = $data['doctor_comment'] ?? null;
-        $result->save();
 
-        return response()->json(['ok' => true]);
+        $labTestRequest = LabTestRequest::query()->create([
+            'doctor_id' => $doctor->id,
+            'status' => 'pending',
+            'notes' => $data['notes'] ?? null,
+        ]);
+
+        foreach ($data['tests'] as $test) {
+            $labTestRequest->items()->create([
+                'test_name' => $test['name'],
+                'description' => $test['description'] ?? null,
+            ]);
+        }
+
+        $labTestRequest->load(['doctor', 'items']);
+
+        $this->staffNotifications()->notifyDoctorAction(
+            'doctor_lab_test_request',
+            $doctor,
+            [
+                'route' => 'lab_test_request',
+                'lab_test_request_id' => $labTestRequest->id,
+                'entity_id' => $labTestRequest->id,
+            ]
+        );
+
+        return response()->json($labTestRequest, 201);
     }
 
     public function messages(Request $request, Conversation $conversation)
@@ -256,74 +474,44 @@ class DoctorController extends Controller
 
         $conversation->loadMissing(['doctor', 'user']);
 
-        $limit = min((int) $request->query('limit', 50), 200);
         $sinceId = $request->query('since_id');
 
-        $messagesQuery = Message::where('conversation_id', $conversation->id);
         if ($sinceId !== null && is_numeric($sinceId)) {
-            $messagesQuery->where('id', '>', (int) $sinceId);
+            $limit = min((int) $request->query('limit', 50), 200);
+
+            $messages = Message::query()
+                ->where('conversation_id', $conversation->id)
+                ->where('id', '>', (int) $sinceId)
+                ->orderBy('id')
+                ->limit($limit)
+                ->get();
+
+            return response()->json([
+                'messages' => $this->formatConversationMessages($messages, $conversation)->values(),
+            ]);
         }
 
-        $messages = $messagesQuery
-            ->orderByDesc('id')
-            ->limit($limit)
-            ->get()
-            ->reverse()
-            ->values();
+        $validator = Validator::make($request->all(), [
+            'per_page' => ['nullable', 'integer', 'min:1', 'max:200'],
+        ]);
 
-        $replyIds = $messages->pluck('reply_to_id')->filter()->unique()->values();
-        $replyMessages = $replyIds->isEmpty()
-            ? collect()
-            : Message::whereIn('id', $replyIds)->get()->keyBy('id');
+        if ($validator->fails()) {
+            return response()->json(['message' => 'Validation failed', 'errors' => $validator->errors()], 422);
+        }
 
-        $messages = $messages->map(function ($m) use ($conversation, $replyMessages) {
-            $senderName = null;
-            if ($m->sender_type === 'doctor') {
-                $senderName = $conversation->doctor?->name;
-            } elseif ($m->sender_type === 'user') {
-                $senderName = $conversation->user?->name;
-            }
+        $perPage = (int) ($validator->validated()['per_page'] ?? 50);
 
-            $reply = null;
-            if ($m->reply_to_id) {
-                $replyMessage = $replyMessages->get($m->reply_to_id);
-                if ($replyMessage && $replyMessage->conversation_id === $conversation->id) {
-                    $replySenderName = $replyMessage->sender_type === 'doctor'
-                        ? $conversation->doctor?->name
-                        : $conversation->user?->name;
+        $messages = Message::query()
+            ->where('conversation_id', $conversation->id)
+            ->orderBy('created_at')
+            ->paginate($perPage)
+            ->appends($request->query());
 
-                    $reply = [
-                        'id' => $replyMessage->id,
-                        'sender_type' => $replyMessage->sender_type,
-                        'sender_name' => $replySenderName,
-                        'body' => $replyMessage->body,
-                        'attachment_url' => $replyMessage->attachment_path
-                            ? (str_starts_with($replyMessage->attachment_path, 'http')
-                                ? $replyMessage->attachment_path
-                                : asset('storage/'.$replyMessage->attachment_path))
-                            : null,
-                        'attachment_type' => $replyMessage->attachment_type,
-                        'created_at' => $replyMessage->created_at?->toIso8601String(),
-                        'read_at' => $replyMessage->read_at?->toIso8601String(),
-                    ];
-                }
-            }
+        $messages->setCollection(
+            $this->formatConversationMessages($messages->getCollection(), $conversation)
+        );
 
-            return [
-                'id' => $m->id,
-                'sender_type' => $m->sender_type,
-                'sender_name' => $senderName,
-                'body' => $m->body,
-                'attachment_url' => $m->attachment_path ? asset('storage/'.$m->attachment_path) : null,
-                'attachment_type' => $m->attachment_type,
-                'reply_to_id' => $m->reply_to_id,
-                'reply_to' => $reply,
-                'created_at' => $m->created_at?->toIso8601String(),
-                'read_at' => $m->read_at?->toIso8601String(),
-            ];
-        });
-
-        return response()->json(['messages' => $messages]);
+        return response()->json($messages);
     }
 
     public function sendMessage(Request $request, Conversation $conversation)
@@ -374,6 +562,17 @@ class DoctorController extends Controller
         $conversation->unread_doctor_count = ($conversation->unread_doctor_count ?? 0) + 1;
         $conversation->save();
 
+        $this->staffNotifications()->notifyDoctorAction(
+            'doctor_message',
+            $doctor,
+            [
+                'route' => 'conversation',
+                'conversation_id' => $conversation->id,
+                'entity_id' => $conversation->id,
+                'message_id' => $message->id,
+            ]
+        );
+
         return response()->json(['id' => $message->id], 201);
     }
 
@@ -405,6 +604,7 @@ class DoctorController extends Controller
             return response()->json(['message' => 'Not allowed'], 403);
         }
 
+        $messageId = $message->id;
         $message->delete();
 
         $lastMessage = Message::where('conversation_id', $conversation->id)->orderByDesc('id')->first();
@@ -417,6 +617,17 @@ class DoctorController extends Controller
         }
         $conversation->save();
 
+        $this->staffNotifications()->notifyDoctorAction(
+            'doctor_message_deleted',
+            $doctor,
+            [
+                'route' => 'conversation',
+                'conversation_id' => $conversation->id,
+                'entity_id' => $conversation->id,
+                'message_id' => $messageId,
+            ]
+        );
+
         return response()->json(['ok' => true]);
     }
 
@@ -426,7 +637,24 @@ class DoctorController extends Controller
 
         abort_unless($result->doctor_id === $doctor->id, 403);
 
+        $result->loadMissing('patient');
+        $resultId = $result->id;
+        $patientId = $result->patient_id;
+        $patientName = $result->patient?->name;
+
         $result->delete();
+
+        $this->staffNotifications()->notifyDoctorAction(
+            'doctor_result_deleted',
+            $doctor,
+            [
+                'route' => 'results',
+                'result_id' => $resultId,
+                'entity_id' => $resultId,
+                'patient_id' => $patientId,
+                'patient_name' => $patientName,
+            ]
+        );
 
         return response()->json(['ok' => true]);
     }
@@ -490,7 +718,210 @@ class DoctorController extends Controller
 
         $doctor->save();
 
+        $this->staffNotifications()->notifyDoctorAction(
+            'doctor_profile_updated',
+            $doctor,
+            [
+                'route' => 'doctor',
+                'entity_id' => $doctor->id,
+            ]
+        );
+
         return response()->json($doctor->fresh());
+    }
+
+    private function staffNotifications(): StaffNotificationService
+    {
+        return app(StaffNotificationService::class);
+    }
+
+    private function doctorResultsBaseQuery(int $doctorId)
+    {
+        return TestResult::query()
+            ->withUnseenStaffCommentsForDoctor($doctorId)
+            ->where('doctor_id', $doctorId);
+    }
+
+    private function markCommentsSeenForDoctor(int $doctorId, int $testResultId): void
+    {
+        $now = now();
+        $view = TestResultDoctorView::query()->firstOrNew([
+            'doctor_id' => $doctorId,
+            'test_result_id' => $testResultId,
+        ]);
+
+        $view->comments_seen_at = $now;
+        if (! $view->exists || $view->viewed_at === null) {
+            $view->viewed_at = $now;
+        }
+        $view->save();
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, TestResult>  $results
+     */
+    private function attachLatestUnseenStaffComments($results): void
+    {
+        $commentIds = $results->pluck('latest_unseen_staff_comment_id')->filter()->unique()->values();
+        if ($commentIds->isEmpty()) {
+            return;
+        }
+
+        $comments = TestResultComment::query()->whereIn('id', $commentIds)->get()->keyBy('id');
+        TestResultComment::hydrateAuthorNames($comments);
+
+        foreach ($results as $result) {
+            $commentId = $result->latest_unseen_staff_comment_id;
+            if ($commentId && $comments->has($commentId)) {
+                $result->setRelation('latestUnseenStaffComment', $comments->get($commentId));
+            }
+        }
+    }
+
+    private function formatDoctorResultItem(TestResult $result): array
+    {
+        $latestComment = $result->relationLoaded('latestUnseenStaffComment')
+            ? $result->getRelation('latestUnseenStaffComment')
+            : null;
+
+        if ($latestComment) {
+            TestResultComment::hydrateAuthorNames(collect([$latestComment]));
+        }
+
+        $latestCommentPayload = null;
+        if ($latestComment) {
+            $latestCommentPayload = [
+                'id' => $latestComment->id,
+                'body' => $latestComment->body,
+                'author_type' => $latestComment->author_type,
+                'author_name' => $latestComment->getAttribute('author_name'),
+                'created_at' => $latestComment->created_at?->toIso8601String(),
+            ];
+        }
+
+        return [
+            'id' => $result->id,
+            'patient' => $this->formatPatient($result->patient),
+            'lab_branch' => $result->lab_branch,
+            'hospital' => $result->hospital,
+            'pdf_path' => $this->pdfStorage->doctorPdfUrl($result),
+            'comments_count' => (int) ($result->comments_count ?? 0),
+            'latest_comment' => $latestCommentPayload,
+            'created_at' => $result->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, Message>  $messages
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function formatConversationMessages(Collection $messages, Conversation $conversation): Collection
+    {
+        $replyIds = $messages->pluck('reply_to_id')->filter()->unique()->values();
+        $replyMessages = $replyIds->isEmpty()
+            ? collect()
+            : Message::whereIn('id', $replyIds)->get()->keyBy('id');
+
+        return $messages->map(function ($m) use ($conversation, $replyMessages) {
+            $senderName = null;
+            if ($m->sender_type === 'doctor') {
+                $senderName = $conversation->doctor?->name;
+            } elseif ($m->sender_type === 'user') {
+                $senderName = $conversation->user?->name;
+            }
+
+            $reply = null;
+            if ($m->reply_to_id) {
+                $replyMessage = $replyMessages->get($m->reply_to_id);
+                if ($replyMessage && $replyMessage->conversation_id === $conversation->id) {
+                    $replySenderName = $replyMessage->sender_type === 'doctor'
+                        ? $conversation->doctor?->name
+                        : $conversation->user?->name;
+
+                    $reply = [
+                        'id' => $replyMessage->id,
+                        'sender_type' => $replyMessage->sender_type,
+                        'sender_name' => $replySenderName,
+                        'body' => $replyMessage->body,
+                        'attachment_url' => $replyMessage->attachment_path
+                            ? (str_starts_with($replyMessage->attachment_path, 'http')
+                                ? $replyMessage->attachment_path
+                                : asset('storage/'.$replyMessage->attachment_path))
+                            : null,
+                        'attachment_type' => $replyMessage->attachment_type,
+                        'created_at' => $replyMessage->created_at?->toIso8601String(),
+                        'read_at' => $replyMessage->read_at?->toIso8601String(),
+                    ];
+                }
+            }
+
+            return [
+                'id' => $m->id,
+                'sender_type' => $m->sender_type,
+                'sender_name' => $senderName,
+                'body' => $m->body,
+                'attachment_url' => $m->attachment_path
+                    ? (str_starts_with($m->attachment_path, 'http')
+                        ? $m->attachment_path
+                        : asset('storage/'.$m->attachment_path))
+                    : null,
+                'attachment_type' => $m->attachment_type,
+                'reply_to_id' => $m->reply_to_id,
+                'reply_to' => $reply,
+                'created_at' => $m->created_at?->toIso8601String(),
+                'read_at' => $m->read_at?->toIso8601String(),
+            ];
+        });
+    }
+
+    private function formatDoctorLabTestRequestItem(LabTestRequest $labTestRequest): array
+    {
+        $items = $labTestRequest->relationLoaded('items')
+            ? $labTestRequest->items
+            : collect();
+
+        return [
+            'id' => $labTestRequest->id,
+            'status' => $labTestRequest->status,
+            'notes' => $labTestRequest->notes,
+            'items' => $items->map(fn ($item) => [
+                'id' => $item->id,
+                'test_name' => $item->test_name,
+                'description' => $item->description,
+            ])->values()->all(),
+            'created_at' => $labTestRequest->created_at?->toIso8601String(),
+            'updated_at' => $labTestRequest->updated_at?->toIso8601String(),
+        ];
+    }
+
+    private function formatDoctorPatientItem(Patient $patient): array
+    {
+        $unseenResultsCount = (int) ($patient->unseen_results_count ?? 0);
+
+        return [
+            'id' => $patient->id,
+            'name' => $patient->name,
+            'birth_year' => $patient->birth_year,
+            'age' => $patient->age,
+            'gender' => $patient->gender,
+            'unseen_results_count' => $unseenResultsCount,
+            'has_unseen_results' => $unseenResultsCount > 0,
+        ];
+    }
+
+    private function formatPatient(?Patient $patient): ?array
+    {
+        if (! $patient) {
+            return null;
+        }
+
+        return [
+            'id' => $patient->id,
+            'name' => $patient->name,
+            'birth_year' => $patient->birth_year,
+            'age' => $patient->age,
+            'gender' => $patient->gender,
+        ];
     }
 
     private function markVisibleAnnouncementsViewedForDoctor(Doctor $doctor): void

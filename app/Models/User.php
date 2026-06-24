@@ -84,4 +84,17 @@ class User extends Authenticatable
 
         return array_fill_keys(config('staff_permissions.keys', []), false);
     }
+
+    public function canReceiveStaffNotification(string $type): bool
+    {
+        $permissionKey = config("staff_notifications.type_permissions.{$type}");
+
+        if (! is_string($permissionKey) || $permissionKey === '') {
+            return false;
+        }
+
+        $permissions = $this->resolveStaffPermissions();
+
+        return ($permissions[$permissionKey] ?? false) === true;
+    }
 }

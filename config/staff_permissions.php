@@ -14,6 +14,7 @@ return [
     'keys' => [
         'chatting',
         'patient_results',
+        'patient_management',
         'user_management',
         'roles_management',
         'doctor_management',
@@ -21,6 +22,7 @@ return [
         'announcement_management',
         'slider_management',
         'lab_tests_management',
+        'lab_test_requests_management',
         'branch_management',
     ],
 ];

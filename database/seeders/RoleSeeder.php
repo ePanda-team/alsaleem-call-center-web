@@ -18,6 +18,7 @@ class RoleSeeder extends Seeder
         $agent = array_fill_keys(array_keys($all), false);
         $agent['chatting'] = true;
         $agent['patient_results'] = true;
+        $agent['patient_management'] = true;
 
         $roles = [
             ['name' => 'Admin', 'slug' => 'admin', 'permissions' => $all],

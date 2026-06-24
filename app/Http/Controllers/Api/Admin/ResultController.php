@@ -4,21 +4,30 @@ namespace App\Http\Controllers\Api\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Doctor;
+use App\Models\Patient;
 use App\Models\TestResult;
 use App\Services\NotificationService;
+use App\Services\TestResultPdfStorage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class ResultController extends Controller
 {
+    public function __construct(
+        private TestResultPdfStorage $pdfStorage
+    ) {}
+
     public function index(Request $request)
     {
-        $query = TestResult::with('doctor');
+        $query = TestResult::with(['doctor', 'patient'])->withCount('comments');
         if ($request->filled('q')) {
             $q = $request->string('q');
             $query->where(function ($sub) use ($q) {
-                $sub->where('patient_name', 'like', "%{$q}%")
-                    ->orWhere('lab_branch', 'like', "%{$q}%");
+                $sub->where('lab_branch', 'like', "%{$q}%")
+                    ->orWhereHas('patient', function ($patientQuery) use ($q) {
+                        $patientQuery->where('name', 'like', "%{$q}%");
+                    });
             });
         }
         if ($request->filled('hospital')) {
@@ -27,6 +36,12 @@ class ResultController extends Controller
         }
         if ($request->filled('doctor_id')) {
             $query->where('doctor_id', (int) $request->input('doctor_id'));
+        }
+        if ($request->filled('patient_name')) {
+            $name = $request->string('patient_name');
+            $query->whereHas('patient', function ($patientQuery) use ($name) {
+                $patientQuery->where('name', 'like', '%'.$name.'%');
+            });
         }
         if ($request->filled('created_from')) {
             $query->whereDate('created_at', '>=', $request->string('created_from'));
@@ -38,7 +53,7 @@ class ResultController extends Controller
         $results = $query->orderByDesc('id')->paginate(20)->appends($request->query());
 
         $results->getCollection()->transform(function (TestResult $result) {
-            $result->setAttribute('pdf_path', $this->publicPdfUrl($result->getRawOriginal('pdf_path') ?? $result->pdf_path));
+            $result->setAttribute('pdf_path', $this->pdfStorage->staffPdfUrl($result));
 
             return $result;
         });
@@ -48,8 +63,9 @@ class ResultController extends Controller
 
     public function show(TestResult $result)
     {
-        $result->load('doctor');
-        $result->setAttribute('pdf_path', $this->publicPdfUrl($result->getRawOriginal('pdf_path') ?? $result->pdf_path));
+        $result->load(['doctor', 'patient']);
+        $result->loadCount('comments');
+        $result->setAttribute('pdf_path', $this->pdfStorage->staffPdfUrl($result));
 
         return response()->json($result);
     }
@@ -57,8 +73,10 @@ class ResultController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'patient_name' => ['required', 'string', 'max:255'],
+            'patient_id' => ['nullable', 'integer', 'exists:patients,id'],
+            'patient_name' => ['required_without:patient_id', 'string', 'max:255'],
             'patient_age' => ['nullable', 'integer', 'min:0', 'max:150'],
+            'gender' => ['required_without:patient_id', 'string', Rule::in(['male', 'female', 'other'])],
             'hospital' => ['nullable', 'string', 'max:255'],
             'lab_branch' => ['required', 'string', 'max:255'],
             'doctor_id' => ['required', 'exists:doctors,id'],
@@ -71,30 +89,35 @@ class ResultController extends Controller
 
         $data = $validator->validated();
 
-        $uploadDir = public_path('storage/results');
-        if (!file_exists($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+        $path = $this->pdfStorage->store($request->file('pdf'));
+
+        $patientId = $data['patient_id'] ?? null;
+        if (! $patientId) {
+            $patient = Patient::findOrCreateFromInput(
+                $data['patient_name'],
+                $data['patient_age'] ?? null,
+                $data['gender']
+            );
+            $patientId = $patient->id;
         }
-        $filename = time() . '_' . uniqid() . '_' . $request->file('pdf')->getClientOriginalName();
-        $request->file('pdf')->move($uploadDir, $filename);
-        $path = 'results/' . $filename;
 
         $testResult = TestResult::create([
-            'patient_name' => $data['patient_name'],
-            'patient_age' => $data['patient_age'] ?? null,
+            'patient_id' => $patientId,
             'hospital' => $data['hospital'] ?? null,
             'lab_branch' => $data['lab_branch'],
             'doctor_id' => $data['doctor_id'],
             'pdf_path' => $path,
         ]);
 
+        $testResult->load(['doctor', 'patient']);
+
         $doctor = Doctor::find($data['doctor_id']);
         if ($doctor) {
-            $notificationService = new NotificationService();
+            $notificationService = new NotificationService;
             $notificationService->sendNewResultNotification($doctor, $testResult);
         }
 
-        $testResult->setAttribute('pdf_path', $this->publicPdfUrl($testResult->pdf_path));
+        $testResult->setAttribute('pdf_path', $this->pdfStorage->staffPdfUrl($testResult));
 
         return response()->json($testResult, 201);
     }
@@ -102,8 +125,10 @@ class ResultController extends Controller
     public function update(Request $request, TestResult $result)
     {
         $validator = Validator::make($request->all(), [
-            'patient_name' => ['required', 'string', 'max:255'],
+            'patient_id' => ['nullable', 'integer', 'exists:patients,id'],
+            'patient_name' => ['required_without:patient_id', 'string', 'max:255'],
             'patient_age' => ['nullable', 'integer', 'min:0', 'max:150'],
+            'gender' => ['required_without:patient_id', 'string', Rule::in(['male', 'female', 'other'])],
             'hospital' => ['nullable', 'string', 'max:255'],
             'lab_branch' => ['required', 'string', 'max:255'],
             'doctor_id' => ['required', 'exists:doctors,id'],
@@ -117,51 +142,37 @@ class ResultController extends Controller
         $data = $validator->validated();
 
         if ($request->hasFile('pdf')) {
-            if ($result->pdf_path) {
-                $oldPath = public_path('storage/' . $result->pdf_path);
-                if (file_exists($oldPath)) {
-                    unlink($oldPath);
-                }
-            }
-            $uploadDir = public_path('storage/results');
-            if (!file_exists($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
-            }
-            $filename = time() . '_' . uniqid() . '_' . $request->file('pdf')->getClientOriginalName();
-            $request->file('pdf')->move($uploadDir, $filename);
-            $result->pdf_path = 'results/' . $filename;
+            $this->pdfStorage->delete($result->pdf_path);
+            $result->pdf_path = $this->pdfStorage->store($request->file('pdf'));
         }
 
-        $result->patient_name = $data['patient_name'];
-        $result->patient_age = $data['patient_age'] ?? null;
+        if (! empty($data['patient_id'])) {
+            $result->patient_id = $data['patient_id'];
+        } else {
+            $patient = Patient::findOrCreateFromInput(
+                $data['patient_name'],
+                $data['patient_age'] ?? null,
+                $data['gender']
+            );
+            $result->patient_id = $patient->id;
+        }
+
         $result->hospital = $data['hospital'] ?? null;
         $result->lab_branch = $data['lab_branch'];
         $result->doctor_id = $data['doctor_id'];
         $result->save();
 
-        $result->load('doctor');
-        $result->setAttribute('pdf_path', $this->publicPdfUrl($result->getRawOriginal('pdf_path') ?? $result->pdf_path));
+        $result->load(['doctor', 'patient']);
+        $result->setAttribute('pdf_path', $this->pdfStorage->staffPdfUrl($result));
 
         return response()->json($result);
     }
 
     public function destroy(TestResult $result)
     {
+        $this->pdfStorage->delete($result->pdf_path);
         $result->delete();
 
         return response()->json(['ok' => true]);
     }
-
-    private function publicPdfUrl(?string $path): ?string
-    {
-        if ($path === null || $path === '') {
-            return null;
-        }
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        return asset('storage/'.$path);
-    }
 }
-

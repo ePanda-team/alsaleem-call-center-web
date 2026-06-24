@@ -11,12 +11,14 @@ class TestResultDoctorView extends Model
         'doctor_id',
         'test_result_id',
         'viewed_at',
+        'comments_seen_at',
     ];
 
     protected function casts(): array
     {
         return [
             'viewed_at' => 'datetime',
+            'comments_seen_at' => 'datetime',
         ];
     }
 

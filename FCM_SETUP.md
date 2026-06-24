@@ -89,20 +89,29 @@ messaging().onTokenRefresh(async (token) => {
 
 ## Notification Types
 
+All doctor push notifications use **Arabic** title/body and include a `data` payload for deep linking. See [`docs/frontend/doctor/push-notifications.md`](docs/frontend/doctor/push-notifications.md).
+
 ### 1. Announcement Notifications
 - **Trigger**: When a new announcement is created
 - **Targeting**: Based on doctor specialties and experience levels
-- **Data**: `{type: 'announcement', announcement_id: 123}`
+- **Data**: `type=announcement`, `route=announcement`, `announcement_id`, `entity_id`
 
 ### 2. New Result Notifications
 - **Trigger**: When a new test result is assigned to a doctor
 - **Targeting**: Specific doctor
-- **Data**: `{type: 'new_result', result_id: 456, patient_name: 'John Doe'}`
+- **Data**: `type=new_result`, `route=result`, `result_id`, `patient_id`, `patient_name`, `entity_id`
 
 ### 3. New Message Notifications
-- **Trigger**: When a new message is sent to a doctor
+- **Trigger**: When staff sends a message to a doctor
 - **Targeting**: Specific doctor
-- **Data**: `{type: 'new_message', conversation_id: 789}`
+- **Data**: `type=new_message`, `route=conversation`, `conversation_id`, `entity_id`
+
+### 4. Staff Comment on Result
+- **Trigger**: When staff posts a comment on a doctor's result
+- **Targeting**: Assigned doctor
+- **Data**: `type=staff_result_comment`, `route=result`, `result_id`, `comment_id`, `patient_id`, `entity_id`
+
+All `data` values are strings in the FCM payload. Every message also includes `click_action=FLUTTER_NOTIFICATION_CLICK`.
 
 ## Testing
 

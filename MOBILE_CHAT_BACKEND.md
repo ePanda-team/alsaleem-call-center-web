@@ -26,14 +26,22 @@ send and fetch messages through the HTTP API below.
    - Response: `{ "conversation_id": 123 }`
    - Save `conversation_id` locally.
 
-### Fetch Messages (Polling)
+### Fetch Messages
 
-4. **Fetch messages**
-   - `GET /api/doctor/conversations/{conversation}/messages`
-   - Optional query:
-     - `limit` (max 200, default 50)
-     - `since_id` (only return messages with id > since_id)
-   - Response: `{ "messages": [ ... ] }`
+4. **Fetch messages** — two modes on the same endpoint:
+
+**Polling mode** (new messages since last poll):
+
+- `GET /api/doctor/conversations/{conversation}/messages?since_id={last_message_id}`
+- Optional: `limit` (max 200, default 50)
+- Response: `{ "messages": [ ... ] }` (chronological, `id > since_id`)
+
+**History mode** (browse / infinite scroll):
+
+- `GET /api/doctor/conversations/{conversation}/messages?page=1`
+- Optional: `per_page` (max 200, default 50)
+- Response: standard Laravel pagination JSON (`data`, `current_page`, `last_page`, …)
+- Ordered **oldest first** (page 1 = earliest messages). For the latest thread window, open `page=last_page`.
 
 Each message includes:
 - `id`
@@ -48,8 +56,8 @@ Each message includes:
 - `read_at` (ISO 8601 or null)
 
 **Polling suggestion:**
-- Foreground: poll every 3–5 seconds.
-- Use `since_id` with the last received message id to avoid refetching.
+- Foreground: poll every 3–5 seconds with `since_id` set to the last received message id.
+- Initial load: use history mode (`?page={last_page}`) or poll with `since_id=0` if you only need recent messages.
 - Background: stop polling or reduce frequency.
 
 ### Send Message

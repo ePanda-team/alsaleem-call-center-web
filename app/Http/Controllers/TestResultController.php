@@ -3,13 +3,18 @@
 namespace App\Http\Controllers;
 
 use App\Models\Doctor;
-use App\Models\TestResult;
 use App\Models\LabBranch;
+use App\Models\TestResult;
 use App\Services\NotificationService;
+use App\Services\TestResultPdfStorage;
 use Illuminate\Http\Request;
 
 class TestResultController extends Controller
 {
+    public function __construct(
+        private TestResultPdfStorage $pdfStorage
+    ) {}
+
     public function index(Request $request)
     {
         $query = TestResult::with('doctor');
@@ -24,6 +29,7 @@ class TestResultController extends Controller
             $query->where('doctor_id', (int) $request->input('doctor_id'));
         }
         $results = $query->orderByDesc('id')->paginate(20)->appends($request->query());
+
         return view('results.index', compact('results'));
     }
 
@@ -32,6 +38,7 @@ class TestResultController extends Controller
         $doctors = Doctor::orderBy('name')->get();
         $labBranches = LabBranch::where('is_active', true)->orderBy('name')->get();
         $defaultBranch = auth()->user()->branch_assignment;
+
         return view('results.create', compact('doctors', 'labBranches', 'defaultBranch'));
     }
 
@@ -45,13 +52,9 @@ class TestResultController extends Controller
             'doctor_id' => ['required', 'exists:doctors,id'],
             'pdf' => ['required', 'file', 'mimetypes:application/pdf'],
         ]);
-        $uploadDir = public_path('storage/results');
-        if (!file_exists($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-        $filename = time() . '_' . uniqid() . '_' . $request->file('pdf')->getClientOriginalName();
-        $request->file('pdf')->move($uploadDir, $filename);
-        $path = 'results/' . $filename;
+
+        $path = $this->pdfStorage->store($request->file('pdf'));
+
         $testResult = TestResult::create([
             'patient_name' => $data['patient_name'],
             'patient_age' => $data['patient_age'] ?? null,
@@ -60,14 +63,13 @@ class TestResultController extends Controller
             'doctor_id' => $data['doctor_id'],
             'pdf_path' => $path,
         ]);
-        
-        // Send notification to the assigned doctor
+
         $doctor = Doctor::find($data['doctor_id']);
         if ($doctor) {
-            $notificationService = new NotificationService();
+            $notificationService = new NotificationService;
             $notificationService->sendNewResultNotification($doctor, $testResult);
         }
-        
+
         return redirect()->route('results.index')->with('status', 'Result added');
     }
 
@@ -75,6 +77,7 @@ class TestResultController extends Controller
     {
         $doctors = Doctor::orderBy('name')->get();
         $labBranches = LabBranch::where('is_active', true)->orderBy('name')->get();
+
         return view('results.edit', compact('result', 'doctors', 'labBranches'));
     }
 
@@ -88,37 +91,27 @@ class TestResultController extends Controller
             'doctor_id' => ['required', 'exists:doctors,id'],
             'pdf' => ['nullable', 'file', 'mimetypes:application/pdf'],
         ]);
+
         if ($request->hasFile('pdf')) {
-            // Delete old PDF if exists
-            if ($result->pdf_path) {
-                $oldPath = public_path('storage/' . $result->pdf_path);
-                if (file_exists($oldPath)) {
-                    unlink($oldPath);
-                }
-            }
-            $uploadDir = public_path('storage/results');
-            if (!file_exists($uploadDir)) {
-                mkdir($uploadDir, 0755, true);
-            }
-            $filename = time() . '_' . uniqid() . '_' . $request->file('pdf')->getClientOriginalName();
-            $request->file('pdf')->move($uploadDir, $filename);
-            $path = 'results/' . $filename;
-            $result->pdf_path = $path;
+            $this->pdfStorage->delete($result->pdf_path);
+            $result->pdf_path = $this->pdfStorage->store($request->file('pdf'));
         }
+
         $result->patient_name = $data['patient_name'];
         $result->patient_age = $data['patient_age'] ?? null;
         $result->hospital = $data['hospital'];
         $result->lab_branch = $data['lab_branch'];
         $result->doctor_id = $data['doctor_id'];
         $result->save();
+
         return redirect()->route('results.index')->with('status', 'Result updated');
     }
 
     public function destroy(TestResult $result)
     {
+        $this->pdfStorage->delete($result->pdf_path);
         $result->delete();
+
         return back()->with('status', 'Result deleted');
     }
 }
-
-

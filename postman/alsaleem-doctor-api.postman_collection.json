@@ -294,7 +294,7 @@
           { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
         ],
         "url": {
-          "raw": "{{baseUrl}}/api/doctor/announcements",
+          "raw": "{{baseUrl}}/api/doctor/announcements?page=1",
           "host": [
             "{{baseUrl}}"
           ],
@@ -302,9 +302,83 @@
             "api",
             "doctor",
             "announcements"
+          ],
+          "query": [
+            { "key": "page", "value": "1" }
           ]
         },
-        "description": "Get announcements (views are automatically tracked when fetched)"
+        "description": "Get announcements (paginated 20/page; views are automatically tracked when fetched)"
+      }
+    },
+    {
+      "name": "Lab Tests (Catalog)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/doctor/lab-tests?page=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctor",
+            "lab-tests"
+          ],
+          "query": [
+            { "key": "page", "value": "1" }
+          ]
+        },
+        "description": "Paginated lab catalog (50/page). Page 1 marks catalog as seen for unseen-summary."
+      }
+    },
+    {
+      "name": "Lab Test Requests (List)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/doctor/lab-test-requests?page=1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctor",
+            "lab-test-requests"
+          ],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "status", "value": "pending", "disabled": true }
+          ]
+        },
+        "description": "Doctor's own lab test requests (20/page). Optional status filter."
+      }
+    },
+    {
+      "name": "Lab Test Requests (Detail)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/doctor/lab-test-requests/1",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctor",
+            "lab-test-requests",
+            "1"
+          ]
+        },
+        "description": "Single lab test request (404 if not owned by logged-in doctor)"
       }
     },
     {
@@ -354,14 +428,14 @@
       ]
     },
     {
-      "name": "Conversation Messages (List)",
+      "name": "Conversation Messages (History)",
       "request": {
         "method": "GET",
         "header": [
           { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
         ],
         "url": {
-          "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages?limit=50",
+          "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages?page=1",
           "host": [
             "{{baseUrl}}"
           ],
@@ -373,9 +447,37 @@
             "messages"
           ],
           "query": [
+            { "key": "page", "value": "1" }
+          ]
+        },
+        "description": "History mode: Laravel pagination JSON, oldest first. Use last_page for latest window."
+      }
+    },
+    {
+      "name": "Conversation Messages (Poll)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages?since_id=0&limit=50",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "doctor",
+            "conversations",
+            "{{conversationId}}",
+            "messages"
+          ],
+          "query": [
+            { "key": "since_id", "value": "0" },
             { "key": "limit", "value": "50" }
           ]
-        }
+        },
+        "description": "Polling mode: returns { messages: [...] } for id > since_id"
       }
     },
     {
