@@ -19,3 +19,13 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+
+# Runtime user uploads (created on deploy; not committed)
+/public/storage/uploads/*
+!/public/storage/uploads/.gitkeep
+/public/storage/announcements/*
+!/public/storage/announcements/.gitkeep
+
+# Firebase service account (obtain from Firebase console)
+/storage/app/*.json
+!/storage/app/.gitignore

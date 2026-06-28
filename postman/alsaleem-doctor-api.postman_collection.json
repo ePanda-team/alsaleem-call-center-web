@@ -2,69 +2,55 @@
   "info": {
     "name": "Alsaleem Doctor API",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Doctor-facing API endpoints for mobile app integration"
+    "description": "Doctor-facing API endpoints for mobile app integration. Run Auth > Doctor Login first to save doctorToken."
   },
   "item": [
     {
-      "name": "Sliders (Public)",
-      "request": {
-        "method": "GET",
-        "url": {
-          "raw": "{{baseUrl}}/api/sliders",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "sliders"
-          ]
-        }
-      },
-      "response": [
+      "name": "Public",
+      "item": [
         {
-          "name": "200 OK",
-          "originalRequest": {
+          "name": "Sliders",
+          "request": {
             "method": "GET",
             "url": {
               "raw": "{{baseUrl}}/api/sliders",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "sliders"
-              ]
-            }
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sliders"]
+            },
+            "description": "Public home sliders (max 3)."
           },
-          "status": "OK",
-          "code": 200,
-          "_postman_previewlanguage": "json",
-          "body": "[{\n  \"id\": 1,\n  \"title\": \"Slide A\",\n  \"image_url\": \"https://.../storage/sliders/a.jpg\",\n  \"position\": 0\n}]"
-        }
-      ]
-    },
-    {
-      "name": "Lab Tests (Public)",
-      "request": {
-        "method": "GET",
-        "url": {
-          "raw": "{{baseUrl}}/api/lab-tests",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "lab-tests"
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "[\n  {\n    \"id\": 1,\n    \"title\": \"Welcome\",\n    \"image_url\": \"http://127.0.0.1:8001/storage/sliders/slide1.jpg\",\n    \"position\": 0,\n    \"url\": \"https://example.com\"\n  }\n]"
+            }
           ]
-        }
-      },
-      "response": [
+        },
         {
-          "name": "200 OK",
-          "status": "OK",
-          "code": 200,
-          "_postman_previewlanguage": "json",
-          "body": "[{\n  \"id\": 1,\n  \"name\": \"CBC\",\n  \"description\": \"Complete blood count\"\n}]"
+          "name": "Lab Tests",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/lab-tests",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "lab-tests"]
+            },
+            "description": "Public lab test catalog (unauthenticated)."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "[\n  {\n    \"id\": 1,\n    \"name\": \"CBC\",\n    \"description\": \"Complete blood count\"\n  }\n]"
+            }
+          ]
         }
       ]
     },
@@ -75,23 +61,15 @@
           "name": "Doctor Login",
           "request": {
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"username\": \"drsmith\",\n  \"password\": \"password\"\n}"
+              "raw": "{\n  \"username\": \"drsmith\",\n  \"password\": \"password\",\n  \"device_name\": \"Postman\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/doctor/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "doctor",
-                "login"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "login"]
             }
           },
           "event": [
@@ -105,7 +83,7 @@
                   "    var json = pm.response.json();",
                   "    if (json.token) {",
                   "      pm.collectionVariables.set('doctorToken', json.token);",
-                  "      pm.test('Saved token to collection variables', function () { pm.expect(json.token).to.be.a('string'); });",
+                  "      pm.test('Saved doctorToken', function () { pm.expect(json.token).to.be.a('string'); });",
                   "    }",
                   "  } catch (e) { /* ignore */ }",
                   "}"
@@ -116,85 +94,141 @@
           "response": [
             {
               "name": "200 OK",
-              "originalRequest": {
-                "method": "POST",
-                "header": [
-                  { "key": "Content-Type", "value": "application/json" }
-                ],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n  \"username\": \"drsmith\",\n  \"password\": \"password\"\n}"
-                },
-                "url": {
-                  "raw": "{{baseUrl}}/api/doctor/login",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "api",
-                    "doctor",
-                    "login"
-                  ]
-                }
-              },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
-              "body": "{\n  \"token\": \"<doctor_api_token>\"\n}"
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"token\": \"abc123def456ghi789jkl012mno345pqr678stu901vwx234yzab567cde890fgh\"\n}"
+            },
+            {
+              "name": "422 Invalid credentials",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"Invalid credentials\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Doctor Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "logout"]
+            },
+            "description": "Revokes the current device token only."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"ok\": true\n}"
             }
           ]
         }
       ]
     },
     {
-      "name": "Me",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/doctor/me",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "doctor",
-            "me"
-          ]
-        }
-      }
-    },
-    {
-      "name": "Update FCM Token",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" },
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"fcm_token\": \"dGhpcyBpcyBhbiBleGFtcGxlIGZjbSB0b2tlbiBmcm9tIG1vYmlsZSBhcHA=\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/api/doctor/fcm-token",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "doctor",
-            "fcm-token"
-          ]
-        },
-        "description": "Updates the doctor's FCM token for push notifications. This endpoint should be called whenever the mobile app receives a new FCM token (typically on app launch or token refresh)."
-      },
-      "response": [
+      "name": "Profile",
+      "item": [
         {
-          "name": "Success Response",
-          "originalRequest": {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "me"]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 1,\n  \"name\": \"Dr. Smith\",\n  \"username\": \"drsmith\",\n  \"speciality\": \"Cardiology\",\n  \"experience_level\": \"consultant\",\n  \"phone\": \"+966500000000\",\n  \"bio\": \"Experienced cardiologist.\",\n  \"profile_picture_url\": null,\n  \"fcm_token\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Profile (JSON)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Dr. Smith\",\n  \"bio\": \"Updated bio from mobile app.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "me"]
+            },
+            "description": "Also accepts POST. Triggers doctor_profile_updated staff notification."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 1,\n  \"name\": \"Dr. Smith\",\n  \"username\": \"drsmith\",\n  \"bio\": \"Updated bio from mobile app.\",\n  \"profile_picture_url\": null\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update Profile (with photo)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "bio", "value": "Profile with photo.", "type": "text" },
+                { "key": "profile_picture", "type": "file", "src": [] }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "me"]
+            },
+            "description": "Multipart upload for profile picture (jpeg/png/gif/webp, max 5 MB)."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 1,\n  \"name\": \"Dr. Smith\",\n  \"profile_picture_url\": \"http://127.0.0.1:8001/storage/doctors/profile_1_1234567890_abc.jpg\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update FCM Token",
+          "request": {
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" },
@@ -206,31 +240,242 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/doctor/fcm-token",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "doctor",
-                "fcm-token"
-              ]
-            }
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "fcm-token"]
+            },
+            "description": "Call on app launch or FCM token refresh."
           },
-          "status": "OK",
-          "code": 200,
-          "_postman_previewlanguage": "json",
-          "header": [
+          "response": [
             {
-              "key": "Content-Type",
-              "value": "application/json"
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"message\": \"FCM token updated successfully\"\n}"
+            },
+            {
+              "name": "422 Validation Error",
+              "status": "Unprocessable Entity",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"message\": \"Validation failed\",\n  \"errors\": {\n    \"fcm_token\": [\"The fcm token field is required.\"]\n  }\n}"
             }
-          ],
-          "cookie": [],
-          "body": "{\n  \"success\": true,\n  \"message\": \"FCM token updated successfully\"\n}"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Badges",
+      "item": [
+        {
+          "name": "Unseen Summary",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/unseen-summary",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "unseen-summary"]
+            },
+            "description": "Badge counts for messages, announcements, results, and lab catalog updates."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"has_unseen\": true,\n  \"messages\": { \"unseen\": true, \"count\": 2 },\n  \"announcements\": { \"unseen\": false, \"count\": 0 },\n  \"results\": { \"unseen\": true, \"count\": 3 },\n  \"tests\": { \"unseen\": false, \"count\": 0 }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Patients",
+      "item": [
+        {
+          "name": "List Patients",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/patients?page=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "patients"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "patient_name", "value": "Ahmed", "disabled": true },
+                { "key": "gender", "value": "male", "disabled": true },
+                { "key": "hospital", "value": "Main", "disabled": true },
+                { "key": "has_comments", "value": "1", "disabled": true }
+              ]
+            },
+            "description": "Patients with results for this doctor. 20/page."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"current_page\": 1,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"name\": \"Ahmed Ali\",\n      \"birth_year\": 1985,\n      \"age\": 41,\n      \"gender\": \"male\",\n      \"unseen_results_count\": 2,\n      \"has_unseen_results\": true\n    }\n  ],\n  \"last_page\": 1,\n  \"total\": 1\n}"
+            }
+          ]
         },
         {
-          "name": "Validation Error",
-          "originalRequest": {
+          "name": "Show Patient",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/patients/{{patientId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "patients", "{{patientId}}"]
+            },
+            "description": "404 if doctor has no results for this patient."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 1,\n  \"name\": \"Ahmed Ali\",\n  \"birth_year\": 1985,\n  \"age\": 41,\n  \"gender\": \"male\",\n  \"unseen_results_count\": 2,\n  \"has_unseen_results\": true\n}"
+            }
+          ]
+        },
+        {
+          "name": "Patient Results",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/patients/{{patientId}}/results?page=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "patients", "{{patientId}}", "results"],
+              "query": [{ "key": "page", "value": "1" }]
+            },
+            "description": "Results for a patient scoped to this doctor. Marks results as viewed."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"current_page\": 1,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"patient\": { \"id\": 1, \"name\": \"Ahmed Ali\", \"birth_year\": 1985, \"age\": 41, \"gender\": \"male\" },\n      \"lab_branch\": \"Main Lab\",\n      \"hospital\": \"Alsaleem Hospital\",\n      \"pdf_path\": \"http://127.0.0.1:8001/api/doctor/results/1/pdf\",\n      \"comments_count\": 1,\n      \"latest_comment\": null,\n      \"created_at\": \"2026-06-10T12:00:00+00:00\"\n    }\n  ],\n  \"last_page\": 1,\n  \"total\": 1\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Results",
+      "item": [
+        {
+          "name": "List Results",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/results?page=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "results"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "patient_name", "value": "Ahmed", "disabled": true },
+                { "key": "patient_age", "value": "41", "disabled": true },
+                { "key": "hospital", "value": "Alsaleem", "disabled": true },
+                { "key": "lab_branch", "value": "Main", "disabled": true },
+                { "key": "has_comments", "value": "1", "disabled": true },
+                { "key": "created_from", "value": "2026-01-01", "disabled": true },
+                { "key": "created_to", "value": "2026-12-31", "disabled": true }
+              ]
+            },
+            "description": "50/page. Marks listed results as viewed."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"current_page\": 1,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"patient\": { \"id\": 1, \"name\": \"Ahmed Ali\", \"birth_year\": 1985, \"age\": 41, \"gender\": \"male\" },\n      \"lab_branch\": \"Main Lab\",\n      \"hospital\": \"Alsaleem Hospital\",\n      \"pdf_path\": \"http://127.0.0.1:8001/api/doctor/results/1/pdf\",\n      \"comments_count\": 1,\n      \"latest_comment\": {\n        \"id\": 2,\n        \"body\": \"Please review.\",\n        \"author_type\": \"staff\",\n        \"author_name\": \"Admin User\",\n        \"created_at\": \"2026-06-10T14:00:00+00:00\"\n      },\n      \"created_at\": \"2026-06-10T12:00:00+00:00\"\n    }\n  ],\n  \"last_page\": 1,\n  \"total\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "Download PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/results/{{resultId}}/pdf",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "results", "{{resultId}}", "pdf"]
+            },
+            "description": "Returns PDF stream. Requires Bearer token."
+          },
+          "response": [
+            {
+              "name": "200 OK (PDF)",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [{ "key": "Content-Type", "value": "application/pdf" }],
+              "body": "(binary PDF content)"
+            }
+          ]
+        },
+        {
+          "name": "List Comments",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/results/{{resultId}}/comments?page=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "results", "{{resultId}}", "comments"],
+              "query": [{ "key": "page", "value": "1" }]
+            },
+            "description": "Clears unseen staff-comment badge for this result."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"current_page\": 1,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"test_result_id\": 1,\n      \"author_type\": \"doctor\",\n      \"author_id\": 1,\n      \"author_name\": \"Dr. Smith\",\n      \"body\": \"Looks good overall.\",\n      \"created_at\": \"2026-06-10T12:30:00+00:00\"\n    },\n    {\n      \"id\": 2,\n      \"test_result_id\": 1,\n      \"author_type\": \"staff\",\n      \"author_id\": 1,\n      \"author_name\": \"Admin User\",\n      \"body\": \"Please review the flagged values.\",\n      \"created_at\": \"2026-06-10T14:00:00+00:00\"\n    }\n  ],\n  \"last_page\": 1,\n  \"total\": 2\n}"
+            }
+          ]
+        },
+        {
+          "name": "Add Comment",
+          "request": {
             "method": "POST",
             "header": [
               { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" },
@@ -238,327 +483,494 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"fcm_token\": \"\"\n}"
+              "raw": "{\n  \"body\": \"Looks good overall.\"\n}"
             },
             "url": {
-              "raw": "{{baseUrl}}/api/doctor/fcm-token",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "doctor",
-                "fcm-token"
-              ]
-            }
+              "raw": "{{baseUrl}}/api/doctor/results/{{resultId}}/comments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "results", "{{resultId}}", "comments"]
+            },
+            "description": "Triggers doctor_result_comment staff notification."
           },
-          "status": "Unprocessable Entity",
-          "code": 422,
-          "_postman_previewlanguage": "json",
-          "header": [
+          "response": [
             {
-              "key": "Content-Type",
-              "value": "application/json"
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 3,\n  \"test_result_id\": 1,\n  \"author_type\": \"doctor\",\n  \"author_id\": 1,\n  \"author_name\": \"Dr. Smith\",\n  \"body\": \"Looks good overall.\",\n  \"created_at\": \"2026-06-10T15:00:00+00:00\"\n}"
             }
-          ],
-          "cookie": [],
-          "body": "{\n  \"message\": \"The fcm token field is required.\",\n  \"errors\": {\n    \"fcm_token\": [\n      \"The fcm token field is required.\"\n    ]\n  }\n}"
+          ]
+        },
+        {
+          "name": "Delete Result",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/results/{{resultId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "results", "{{resultId}}"]
+            },
+            "description": "Also accepts POST. Soft-deletes own result. Triggers doctor_result_deleted notification."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"ok\": true\n}"
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Results",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/doctor/results",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "doctor",
-            "results"
-          ]
-        }
-      }
-    },
-    {
       "name": "Announcements",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/doctor/announcements?page=1",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "doctor",
-            "announcements"
-          ],
-          "query": [
-            { "key": "page", "value": "1" }
-          ]
-        },
-        "description": "Get announcements (paginated 20/page; views are automatically tracked when fetched)"
-      }
-    },
-    {
-      "name": "Lab Tests (Catalog)",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/doctor/lab-tests?page=1",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "doctor",
-            "lab-tests"
-          ],
-          "query": [
-            { "key": "page", "value": "1" }
-          ]
-        },
-        "description": "Paginated lab catalog (50/page). Page 1 marks catalog as seen for unseen-summary."
-      }
-    },
-    {
-      "name": "Lab Test Requests (List)",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/doctor/lab-test-requests?page=1",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "doctor",
-            "lab-test-requests"
-          ],
-          "query": [
-            { "key": "page", "value": "1" },
-            { "key": "status", "value": "pending", "disabled": true }
-          ]
-        },
-        "description": "Doctor's own lab test requests (20/page). Optional status filter."
-      }
-    },
-    {
-      "name": "Lab Test Requests (Detail)",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/doctor/lab-test-requests/1",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "doctor",
-            "lab-test-requests",
-            "1"
-          ]
-        },
-        "description": "Single lab test request (404 if not owned by logged-in doctor)"
-      }
-    },
-    {
-      "name": "Conversation",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/doctor/conversation",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "doctor",
-            "conversation"
+      "item": [
+        {
+          "name": "List Announcements",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/announcements?page=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "announcements"],
+              "query": [{ "key": "page", "value": "1" }]
+            },
+            "description": "20/page. Marks visible announcements as viewed. [dr] placeholder replaced with doctor name."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"current_page\": 1,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"title\": \"Welcome Dr. Smith\",\n      \"body\": \"New lab protocols are in effect.\",\n      \"target_specialties\": null,\n      \"target_experience_levels\": null,\n      \"media_files\": [],\n      \"created_at\": \"2026-06-01T08:00:00+00:00\"\n    }\n  ],\n  \"last_page\": 1,\n  \"total\": 1\n}"
+            }
           ]
         }
-      },
-      "response": [
+      ]
+    },
+    {
+      "name": "Lab Catalog",
+      "item": [
         {
-          "name": "200 OK",
-          "originalRequest": {
+          "name": "Lab Tests (Authenticated)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/lab-tests?page=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "lab-tests"],
+              "query": [{ "key": "page", "value": "1" }]
+            },
+            "description": "50/page. Page 1 marks catalog as seen for unseen-summary."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"current_page\": 1,\n  \"data\": [\n    { \"id\": 1, \"name\": \"CBC\", \"description\": \"Complete blood count\" },\n    { \"id\": 2, \"name\": \"Lipid Panel\", \"description\": \"Cholesterol and triglycerides\" }\n  ],\n  \"last_page\": 1,\n  \"total\": 2\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Lab Test Requests",
+      "item": [
+        {
+          "name": "List Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/lab-test-requests?page=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "lab-test-requests"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "status", "value": "pending", "disabled": true }
+              ]
+            },
+            "description": "Doctor's own requests. 20/page."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"current_page\": 1,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"status\": \"pending\",\n      \"notes\": \"Need these for new patient.\",\n      \"items\": [\n        { \"id\": 1, \"test_name\": \"Vitamin D\", \"description\": \"25-OH Vitamin D\" }\n      ],\n      \"created_at\": \"2026-06-10T10:00:00+00:00\",\n      \"updated_at\": \"2026-06-10T10:00:00+00:00\"\n    }\n  ],\n  \"last_page\": 1,\n  \"total\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notes\": \"Need these for new patient.\",\n  \"tests\": [\n    {\n      \"name\": \"Vitamin D\",\n      \"description\": \"25-OH Vitamin D\"\n    },\n    {\n      \"name\": \"Thyroid Panel\",\n      \"description\": \"TSH, T3, T4\"\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/lab-test-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "lab-test-requests"]
+            },
+            "description": "Min 1 test required. Triggers doctor_lab_test_request staff notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  try {",
+                  "    var json = pm.response.json();",
+                  "    if (json.id) pm.collectionVariables.set('labTestRequestId', json.id);",
+                  "  } catch (e) { /* ignore */ }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 1,\n  \"doctor_id\": 1,\n  \"status\": \"pending\",\n  \"notes\": \"Need these for new patient.\",\n  \"items\": [\n    { \"id\": 1, \"test_name\": \"Vitamin D\", \"description\": \"25-OH Vitamin D\" },\n    { \"id\": 2, \"test_name\": \"Thyroid Panel\", \"description\": \"TSH, T3, T4\" }\n  ],\n  \"created_at\": \"2026-06-10T10:00:00+00:00\",\n  \"updated_at\": \"2026-06-10T10:00:00+00:00\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Show Request",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/lab-test-requests/{{labTestRequestId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "lab-test-requests", "{{labTestRequestId}}"]
+            },
+            "description": "404 if not owned by logged-in doctor."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 1,\n  \"status\": \"approved\",\n  \"notes\": \"Need these for new patient.\",\n  \"items\": [\n    { \"id\": 1, \"test_name\": \"Vitamin D\", \"description\": \"25-OH Vitamin D\" }\n  ],\n  \"created_at\": \"2026-06-10T10:00:00+00:00\",\n  \"updated_at\": \"2026-06-11T09:00:00+00:00\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "Get Conversation",
+          "request": {
             "method": "GET",
             "header": [
               { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
             ],
             "url": {
               "raw": "{{baseUrl}}/api/doctor/conversation",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "doctor",
-                "conversation"
-              ]
-            }
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "conversation"]
+            },
+            "description": "Get or create the doctor's conversation with staff."
           },
-          "status": "OK",
-          "code": 200,
-          "_postman_previewlanguage": "json",
-          "body": "{\n  \"conversation_id\": 123\n}"
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  try {",
+                  "    var json = pm.response.json();",
+                  "    if (json.conversation_id) {",
+                  "      pm.collectionVariables.set('conversationId', json.conversation_id);",
+                  "      pm.test('Saved conversationId', function () { pm.expect(json.conversation_id).to.be.a('number'); });",
+                  "    }",
+                  "  } catch (e) { /* ignore */ }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"conversation_id\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "Messages (History)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages?page=1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "conversations", "{{conversationId}}", "messages"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "per_page", "value": "50", "disabled": true }
+              ]
+            },
+            "description": "Paginated history, oldest first within each page."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"current_page\": 1,\n  \"data\": [\n    {\n      \"id\": 1,\n      \"sender_type\": \"user\",\n      \"sender_name\": \"Admin User\",\n      \"body\": \"Hello doctor, how can we help?\",\n      \"attachment_url\": null,\n      \"attachment_type\": null,\n      \"reply_to_id\": null,\n      \"reply_to\": null,\n      \"created_at\": \"2026-06-10T09:00:00+00:00\",\n      \"read_at\": \"2026-06-10T09:05:00+00:00\"\n    }\n  ],\n  \"last_page\": 1,\n  \"total\": 1\n}"
+            }
+          ]
+        },
+        {
+          "name": "Messages (Poll)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages?since_id=0&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "conversations", "{{conversationId}}", "messages"],
+              "query": [
+                { "key": "since_id", "value": "0" },
+                { "key": "limit", "value": "50" }
+              ]
+            },
+            "description": "Polling mode: returns { messages: [...] } for id > since_id. Poll every 3–5s in foreground."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"messages\": [\n    {\n      \"id\": 2,\n      \"sender_type\": \"user\",\n      \"sender_name\": \"Admin User\",\n      \"body\": \"Your result is ready.\",\n      \"attachment_url\": null,\n      \"attachment_type\": null,\n      \"reply_to_id\": null,\n      \"reply_to\": null,\n      \"created_at\": \"2026-06-10T10:00:00+00:00\",\n      \"read_at\": null\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Hello from mobile\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "conversations", "{{conversationId}}", "messages"]
+            },
+            "description": "Triggers doctor_message staff notification."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  try {",
+                  "    var json = pm.response.json();",
+                  "    if (json.id) pm.collectionVariables.set('messageId', json.id);",
+                  "  } catch (e) { /* ignore */ }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 3\n}"
+            }
+          ]
+        },
+        {
+          "name": "Send Message (with attachment)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"See attached image\",\n  \"attachment_url\": \"{{baseUrl}}/storage/uploads/1234567890_abc_image.jpg\",\n  \"attachment_type\": \"image\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "conversations", "{{conversationId}}", "messages"]
+            },
+            "description": "Upload file first via Upload > Upload File, then use returned url here. attachment_type: invoice, document, image, video."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"id\": 4\n}"
+            }
+          ]
+        },
+        {
+          "name": "Mark Messages Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages/read",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "conversations", "{{conversationId}}", "messages", "read"]
+            },
+            "description": "Marks all staff (user) messages as read."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"ok\": true,\n  \"updated\": 2\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages/{{messageId}}/delete",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "doctor", "conversations", "{{conversationId}}", "messages", "{{messageId}}", "delete"]
+            },
+            "description": "Doctor can delete own messages only. Triggers doctor_message_deleted notification."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"ok\": true\n}"
+            }
+          ]
         }
       ]
     },
     {
-      "name": "Conversation Messages (History)",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages?page=1",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "doctor",
-            "conversations",
-            "{{conversationId}}",
-            "messages"
-          ],
-          "query": [
-            { "key": "page", "value": "1" }
-          ]
-        },
-        "description": "History mode: Laravel pagination JSON, oldest first. Use last_page for latest window."
-      }
-    },
-    {
-      "name": "Conversation Messages (Poll)",
-      "request": {
-        "method": "GET",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" }
-        ],
-        "url": {
-          "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages?since_id=0&limit=50",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "doctor",
-            "conversations",
-            "{{conversationId}}",
-            "messages"
-          ],
-          "query": [
-            { "key": "since_id", "value": "0" },
-            { "key": "limit", "value": "50" }
-          ]
-        },
-        "description": "Polling mode: returns { messages: [...] } for id > since_id"
-      }
-    },
-    {
-      "name": "Conversation Messages (Send)",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" },
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"body\": \"Hello from mobile\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/api/doctor/conversations/{{conversationId}}/messages",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "doctor",
-            "conversations",
-            "{{conversationId}}",
-            "messages"
-          ]
-        }
-      },
-      "response": [
+      "name": "Upload",
+      "item": [
         {
-          "name": "201 Created",
-          "status": "Created",
-          "code": 201,
-          "_postman_previewlanguage": "json",
-          "body": "{\n  \"id\": 1\n}"
-        }
-      ]
-    },
-    {
-      "name": "Result Comment (Doctor)",
-      "request": {
-        "method": "POST",
-        "header": [
-          { "key": "Authorization", "value": "Bearer {{doctorToken}}", "type": "text" },
-          { "key": "Content-Type", "value": "application/json" }
-        ],
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"doctor_comment\": \"Looks good\"\n}"
-        },
-        "url": {
-          "raw": "{{baseUrl}}/api/doctor/results/{{resultId}}/comment",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "doctor",
-            "results",
-            "{{resultId}}",
-            "comment"
+          "name": "Upload File",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": [] }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/upload",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "upload"]
+            },
+            "description": "No auth required. Max ~50 MB. Use returned url in chat attachment_url."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"success\": true,\n  \"url\": \"http://127.0.0.1:8001/storage/uploads/1234567890_abc123_image.jpg\",\n  \"path\": \"uploads/1234567890_abc123_image.jpg\",\n  \"filename\": \"1234567890_abc123_image.jpg\",\n  \"original_name\": \"image.jpg\",\n  \"size\": 102400,\n  \"mime_type\": \"image/jpeg\"\n}"
+            }
           ]
-        }
-      },
-      "response": [
-        {
-          "name": "200 OK",
-          "status": "OK",
-          "code": 200,
-          "_postman_previewlanguage": "json",
-          "body": "{\n  \"ok\": true\n}"
         }
       ]
     }
   ],
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost" },
+    { "key": "baseUrl", "value": "http://127.0.0.1:8001" },
     { "key": "doctorToken", "value": "" },
-    { "key": "conversationId", "value": "" },
-    { "key": "resultId", "value": "" }
+    { "key": "conversationId", "value": "1" },
+    { "key": "resultId", "value": "1" },
+    { "key": "patientId", "value": "1" },
+    { "key": "labTestRequestId", "value": "1" },
+    { "key": "messageId", "value": "1" }
   ]
 }
-
-

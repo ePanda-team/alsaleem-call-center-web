@@ -43,7 +43,7 @@ class DatabaseSeeder extends Seeder
 
         Doctor::query()->updateOrCreate(
             ['username' => 'drsmith'],
-            ['name' => 'Dr. Smith', 'speciality' => 'Cardiology', 'experience_level' => 'senior', 'password' => 'password']
+            ['name' => 'Dr. Smith', 'speciality' => 'Cardiology', 'experience_level' => 'consultant', 'password' => 'password']
         );
 
         foreach (Doctor::all() as $doc) {

@@ -24,26 +24,6 @@ class AnnouncementController extends Controller
 
     public function store(Request $request)
     {
-        // Debug: Log the request data
-        \Log::info('Announcement store request:', [
-            'title' => $request->title,
-            'body' => $request->body,
-            'target_specialties' => $request->target_specialties,
-            'target_experience_levels' => $request->target_experience_levels,
-            'media_count' => $request->hasFile('media') ? count($request->file('media')) : 0,
-            'media_files' => $request->hasFile('media') ? array_map(function($file) {
-                return [
-                    'name' => $file->getClientOriginalName(),
-                    'size' => $file->getSize(),
-                    'mime' => $file->getMimeType(),
-                    'error' => $file->getError()
-                ];
-            }, $request->file('media')) : [],
-            'php_upload_max_filesize' => ini_get('upload_max_filesize'),
-            'php_post_max_size' => ini_get('post_max_size'),
-            'php_max_file_uploads' => ini_get('max_file_uploads')
-        ]);
-
         // Check for upload errors before validation
         if ($request->hasFile('media')) {
             foreach ($request->file('media') as $index => $file) {
